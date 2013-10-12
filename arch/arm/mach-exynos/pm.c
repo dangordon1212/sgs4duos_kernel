@@ -153,6 +153,9 @@ static int exynos_cpu_suspend(unsigned long arg)
 
 	__raw_writel(0xcd0a0002, EXYNOS_INFORM2);
 
+	if (soc_is_exynos5410())
+		exynos_set_dummy_state(true);
+
 #ifdef CONFIG_ARM_TRUSTZONE
 	exynos_smc(SMC_CMD_SLEEP, 0, 0, 0);
 #else
@@ -464,6 +467,7 @@ static int exynos_pm_suspend(void)
 		if (exynos_etc_base)
 			save_gpio_etc = __raw_readl(exynos_etc_base + 0x16C);
 	}
+
 	return 0;
 }
 
@@ -592,6 +596,10 @@ early_wakeup:
 		__raw_writel(0x0, REG_INFORM1);
 		exynos_show_wakeup_reason();
 	}
+
+	if (soc_is_exynos5410())
+		exynos_set_dummy_state(false);
+
 	return;
 }
 

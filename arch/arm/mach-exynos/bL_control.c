@@ -493,7 +493,7 @@ static const struct file_operations bL_status_fops = {
 };
 
 static struct miscdevice bL_status_device = {
-	MISC_DYNAMIC_MINOR,
+	BL_STATUS_MINOR,
 	"bL_status",
 	&bL_status_fops
 };
@@ -1077,7 +1077,7 @@ static const struct file_operations bL_status_fops = {
 };
 
 static struct miscdevice bL_status_device = {
-	MISC_DYNAMIC_MINOR,
+	BL_STATUS_MINOR,
 	"bL_status",
 	&bL_status_fops
 };

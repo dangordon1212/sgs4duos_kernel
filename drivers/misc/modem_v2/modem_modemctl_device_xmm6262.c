@@ -27,6 +27,10 @@
 #include <linux/platform_data/modem.h>
 #include "modem_prj.h"
 
+#if defined(CONFIG_MACH_J_CHN_CU)
+#include <plat/gpio-cfg.h>
+#endif
+
 static int xmm6262_on(struct modem_ctl *mc)
 {
 	mif_info("\n");
@@ -119,6 +123,18 @@ static int xmm6262_force_crash_exit(struct modem_ctl *mc)
 {
 	mif_info("\n");
 
+#if defined(CONFIG_MACH_J_CHN_CU)
+		mif_info("[CP2] froce crash for CP2 - start\n");
+		gpio_direction_input(GPIO_ESC_DUMP_INT_REV02);
+		s3c_gpio_setpull(GPIO_ESC_DUMP_INT_REV02, S3C_GPIO_PULL_NONE);
+		gpio_set_value(GPIO_ESC_DUMP_INT_REV02, 1);
+
+		gpio_direction_output(GPIO_CP2_MSM_RST, 0);
+		msleep(50);
+		gpio_direction_input(GPIO_CP2_MSM_RST);
+		mif_info("[CP2] froce crash for CP2 - end\n");
+#endif
+
 	if (!mc->gpio_ap_dump_int)
 		return -ENXIO;
 
@@ -159,8 +175,9 @@ static irqreturn_t phone_active_irq_handler(int irq, void *_mc)
 			phone_state = STATE_CRASH_EXIT;
 		else
 			phone_state = STATE_CRASH_RESET;
-	} /* else
-		phone_state = STATE_OFFLINE;*/
+	} else if (mc->phone_state == STATE_CRASH_EXIT
+					|| mc->phone_state == STATE_CRASH_RESET)
+		phone_state = mc->phone_state;
 
 	if (mc->iod && mc->iod->modem_state_changed)
 		mc->iod->modem_state_changed(mc->iod, phone_state);

@@ -23,7 +23,7 @@
 
 #ifdef CONFIG_EXYNOS_IOVMM
 
-#define IOVA_START 0xC0000000
+#define IOVA_START 0x80000000
 #define IOVM_SIZE (SZ_2G - SZ_4K) /* last 4K is for error values */
 
 /* We does not consider super section mapping (16MB) */

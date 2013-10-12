@@ -61,4 +61,4 @@ config ION_EXYNOS_DRM_MEMSIZE_MFC_INPUT
 config ION_EXYNOS_DRM_MEMSIZE_G2D_WFD
 	int "Reserved memsize in kilobytes for G2D WFD"
 	depends on EXYNOS_CONTENT_PATH_PROTECTION
-	default 12288
+	default 8192

@@ -116,13 +116,6 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		return -EIO;
 	}
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-	if (dev->num_drm_inst) {
-		mfc_info("Calling iovmm_map_oto for drm instance\n");
-		dev->buf_oto_status |= OTO_BUF_FW;
-		iovmm_map_oto(dev->device, s5p_mfc_bitproc_phys, firmware_size);
-	}
-#endif
 	if (!dev->num_drm_inst) {
 		s5p_mfc_bitproc_virt =
 				s5p_mfc_mem_vaddr_priv(s5p_mfc_bitproc_buf);
@@ -240,12 +233,6 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 		dma_unmap_single(dev->v4l2_dev.dev, s5p_mfc_bitproc_dma,
 				 FIRMWARE_CODE_SIZE, DMA_TO_DEVICE);
 	*/
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-	if (dev->buf_oto_status & OTO_BUF_FW) {
-		iovmm_unmap_oto(dev->device, s5p_mfc_bitproc_phys);
-		dev->buf_oto_status &= ~OTO_BUF_FW;
-	}
-#endif
 	s5p_mfc_mem_free_priv(s5p_mfc_bitproc_buf);
 
 	s5p_mfc_bitproc_virt =  0;

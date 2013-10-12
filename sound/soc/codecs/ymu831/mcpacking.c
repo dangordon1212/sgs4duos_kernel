@@ -1964,6 +1964,12 @@ SINT32	McPacket_AddPowerUp(
 		bOfc	= 1;
 	}
 
+	if (((bDUpdate & MCDRV_POWINFO_D_PE_CLK_PD) != 0UL)
+	&& ((bCurRegPD&MCB_PE_CLK_PD) != 0)) {
+		;
+		bOfc	= 1;
+	}
+
 	/*	ANACLK_PD	*/
 	if ((((psPowerUpdate->abAnalog[0] & MCB_AP_LDOA) != 0)
 	&& ((psPowerInfo->abAnalog[0] & MCB_AP_LDOA) == 0))

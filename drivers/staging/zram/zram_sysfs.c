@@ -89,23 +89,6 @@ static ssize_t initstate_show(struct device *dev,
 	return sprintf(buf, "%u\n", zram->init_done);
 }
 
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-extern int swapon(const char*specialfile, int swap_flags);
-static ssize_t initstate_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
-{
-	struct zram *zram = dev_to_zram(dev);
-
-	if (zram->init_done) {
-		pr_info("the device is initialized device\n");
-		return -EBUSY;
-	}
-	zram_init_device(zram);
-	swapon("/dev/block/zram0", 0);
-	return len;
-}
-#endif
-
 static ssize_t reset_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
@@ -216,11 +199,7 @@ static ssize_t mem_used_total_show(struct device *dev,
 
 static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR,
 		disksize_show, disksize_store);
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-static DEVICE_ATTR(initstate, S_IRUGO | S_IWUSR, initstate_show, initstate_store);
-#else
 static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
-#endif
 static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
 static DEVICE_ATTR(num_reads, S_IRUGO, num_reads_show, NULL);
 static DEVICE_ATTR(num_writes, S_IRUGO, num_writes_show, NULL);

@@ -41,8 +41,8 @@
 /* Firmware Version */
 #define TK_FIRMWARE_VER_45  0x09
 #define TK_FIRMWARE_VER_55  0x0c
-#define TK_FIRMWARE_VER_65  0x0f
-#define TK_MODULE_VER    0x07
+#define TK_FIRMWARE_VER_65  0x10
+#define TK_MODULE_VER    0x09
 #define TK_MODULE_20045		45
 #define TK_MODULE_20055		55
 #define TK_MODULE_20065		65

@@ -33,7 +33,7 @@ static inline bool is_yuvfmt(enum color_format fmt)
 	}
 }
 
-static int bit_per_pixel(struct fimg2d_image *img, int plane)
+int bit_per_pixel(struct fimg2d_image *img, int plane)
 {
 	switch (img->fmt) {
 	case CF_XRGB_8888:
@@ -78,7 +78,7 @@ static inline int pixel2offset(int x1, int bpp)
 	return (x1 * bpp) >> 3;
 }
 
-static inline int width2bytes(int width, int bpp)
+inline int width2bytes(int width, int bpp)
 {
 	switch (bpp) {
 	case 32:
@@ -268,6 +268,10 @@ static int fimg2d_calc_dma_size(struct fimg2d_bltcmd *cmd)
 			c->cached = c->size;
 			cmd->dma_all += c->cached;
 		}
+
+		if (i == IDST)
+			fimg2d_debug("addr : %p, size : %d\n",
+					(void *)c->addr, c->size);
 
 		if (!is_yuvfmt(img->fmt))
 			continue;
@@ -511,7 +515,6 @@ static int fimg2d_check_dma_sync(struct fimg2d_bltcmd *cmd)
 
 	fimg2d_debug("cache flush\n");
 	perf_start(cmd, PERF_CACHE);
-	pagefault_disable();
 	if (is_inner_flushall(cmd->dma_all))
 		flush_all_cpu_caches();
 	else
@@ -523,7 +526,6 @@ static int fimg2d_check_dma_sync(struct fimg2d_bltcmd *cmd)
 	else
 		outer_flush_clip_range(cmd);
 #endif
-	pagefault_enable();
 	perf_end(cmd, PERF_CACHE);
 
 	return 0;
@@ -549,7 +551,6 @@ int fimg2d_check_pgd(struct mm_struct *mm, struct fimg2d_bltcmd *cmd)
 			goto err_pgtable;
 		}
 	}
-	printk("%s, checked!\n", __func__);
 	return 0;
 
 err_pgtable:

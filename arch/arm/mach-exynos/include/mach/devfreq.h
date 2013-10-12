@@ -33,4 +33,6 @@ extern int exynos5_mif_unregister_notifier(struct notifier_block *nb);
 
 extern int exynos5_mif_bpll_register_notifier(struct notifier_block *nb);
 extern int exynos5_mif_bpll_unregister_notifier(struct notifier_block *nb);
+
+extern spinlock_t int_div_lock;
 #endif

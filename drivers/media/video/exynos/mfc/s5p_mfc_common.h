@@ -283,7 +283,6 @@ struct s5p_mfc_dev {
 	int curr_ctx_drm;
 	int fw_status;
 	int num_drm_inst;
-	int buf_oto_status;
 	struct s5p_mfc_extra_buf drm_info;
 	struct vb2_alloc_ctx *alloc_ctx_fw;
 	struct vb2_alloc_ctx *alloc_ctx_sh;
@@ -741,6 +740,10 @@ static inline unsigned int mfc_version(struct s5p_mfc_dev *dev)
 					(dev->fw.date >= 0x120823)))
 #define FW_HAS_VUI_PARAMS(dev)		(IS_MFCV6(dev) &&		\
 					(dev->fw.date >= 0x121214))
+#define FW_HAS_ADV_RC_MODE(dev)		(IS_MFCV6(dev) &&		\
+					(dev->fw.date >= 0x130329))
+#define FW_HAS_POC_TYPE_CTRL(dev)	(IS_MFCV6(dev) &&		\
+					(dev->fw.date >= 0x130405))
 
 #define HW_LOCK_CLEAR_MASK		(0xFFFFFFFF)
 

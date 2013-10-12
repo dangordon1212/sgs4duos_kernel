@@ -66,6 +66,8 @@ struct busfreq_data_int {
 	struct mutex lock;
 };
 
+DEFINE_SPINLOCK(int_div_lock);
+
 enum int_bus_idx {
 	LV_0,
 	LV_1,
@@ -265,6 +267,8 @@ static void exynos5_int_set_div(struct int_clkdiv_info *target_int_clkdiv)
 {
 	unsigned int tmp;
 
+	spin_lock(&int_div_lock);
+
 	/*
 	 * Setting for TOP_0
 	 */
@@ -297,6 +301,8 @@ static void exynos5_int_set_div(struct int_clkdiv_info *target_int_clkdiv)
 
 	wait_clkdiv_stable_time(EXYNOS5_CLKDIV_STAT_TOP2,
 			target_int_clkdiv->top2.wait_mask, 0);
+
+	spin_unlock(&int_div_lock);
 }
 
 static bool int_is_need_pms_change(unsigned int old_value, unsigned int new_value)

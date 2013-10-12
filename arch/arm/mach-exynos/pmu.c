@@ -752,6 +752,37 @@ void exynos_lpi_mask_ctrl(bool on)
 	}
 }
 
+void exynos_set_dummy_state(bool on)
+{
+	if (on) {
+		__raw_writel(0x8080008B, EXYNOS_SEQ_TRANSITION(0));
+		__raw_writel(0x80900081, EXYNOS_SEQ_TRANSITION(1));
+		__raw_writel(0x808A0091, EXYNOS_SEQ_TRANSITION(2));
+		__raw_writel(0x8080008B, EXYNOS_SEQ_COREBLK_TRANSITION(0));
+		__raw_writel(0x80900081, EXYNOS_SEQ_COREBLK_TRANSITION(1));
+		__raw_writel(0x808A0091, EXYNOS_SEQ_COREBLK_TRANSITION(2));
+		__raw_writel(0x0, EXYNOS5410_ONENANDXL_MEM_SYS_PWR);
+		__raw_writel(0x0, EXYNOS5_G2D_MEM_SYS_PWR_REG);
+		__raw_writel(0x0, EXYNOS5410_USBDEV_MEM_SYS_PWR);
+		__raw_writel(0x0, EXYNOS5410_USBDEV1_MEM_SYS_PWR);
+		__raw_writel(0x0, EXYNOS5410_SDMMC_MEM_SYS_PWR);
+		__raw_writel(0x0, EXYNOS5410_CSSYS_MEM_SYS_PWR);
+	} else {
+		__raw_writel(0x0, EXYNOS_SEQ_TRANSITION(0));
+		__raw_writel(0x0, EXYNOS_SEQ_TRANSITION(1));
+		__raw_writel(0x0, EXYNOS_SEQ_TRANSITION(2));
+		__raw_writel(0x0, EXYNOS_SEQ_COREBLK_TRANSITION(0));
+		__raw_writel(0x0, EXYNOS_SEQ_COREBLK_TRANSITION(1));
+		__raw_writel(0x0, EXYNOS_SEQ_COREBLK_TRANSITION(2));
+		__raw_writel(0x3, EXYNOS5410_ONENANDXL_MEM_SYS_PWR);
+		__raw_writel(0x3, EXYNOS5_G2D_MEM_SYS_PWR_REG);
+		__raw_writel(0x3, EXYNOS5410_USBDEV_MEM_SYS_PWR);
+		__raw_writel(0x3, EXYNOS5410_USBDEV1_MEM_SYS_PWR);
+		__raw_writel(0x3, EXYNOS5410_SDMMC_MEM_SYS_PWR);
+		__raw_writel(0x3, EXYNOS5410_CSSYS_MEM_SYS_PWR);
+	}
+}
+
 static int __init exynos_pmu_init(void)
 {
 	unsigned int value, i, j, wdtreset;

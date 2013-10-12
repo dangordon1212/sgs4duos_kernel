@@ -456,7 +456,7 @@ void exynos4_restart(char mode, const char *cmd)
 
 void exynos5_restart(char mode, const char *cmd)
 {
-	exynos_smc(SMC_CMD_SWRESET, 0, 0, 0);
+	__raw_writel(0x1, EXYNOS_SWRESET);
 }
 
 #define REG_CPU_STATE_ADDR	(S5P_VA_SYSRAM_NS + 0x28)

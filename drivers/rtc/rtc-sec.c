@@ -594,6 +594,11 @@ static int s2mps11_rtc_init_reg(struct s2mps11_rtc_info *info)
 		data_alm1[4], data_alm1[2],
 		data_alm1[1], data_alm1[0],
 		data_alm1[3]);
+
+	ret = sec_rtc_read(info->iodev, S2MPS11_RTC_UPDATE, &data);
+	if (ret < 0)
+		return ret;
+	printk(KERN_INFO "%s: RTC_UPDATE(%d)\n", __func__, data);
 #endif
 
 	ret = sec_rtc_read(info->iodev, S2MPS11_RTC_CTRL, &tp_read);
@@ -620,7 +625,7 @@ static int s2mps11_rtc_init_reg(struct s2mps11_rtc_info *info)
 		tm.tm_sec = 0;
 		tm.tm_min = 0;
 		tm.tm_hour = 0;
-		tm.tm_wday = 0;
+		tm.tm_wday = 2;
 		tm.tm_mday = 1;
 		tm.tm_mon = 0;
 		tm.tm_year = 113;
@@ -635,12 +640,14 @@ static int s2mps11_rtc_init_reg(struct s2mps11_rtc_info *info)
 			__func__, ret);
 		return ret;
 	}
+#if !defined(CONFIG_RTC_ALARM_BOOT)
 	ret = sec_rtc_update(info->iodev, S2MPS11_RTC_UPDATE, 0x00, 0x0C);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to update rtc update reg(%d)\n",
 			__func__, ret);
 		return ret;
 	}
+#endif
 
 	ret = sec_rtc_update(info->iodev, S2MPS11_RTC_CTRL,
 		data, 0x3);

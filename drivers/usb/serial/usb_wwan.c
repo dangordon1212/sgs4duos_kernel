@@ -36,8 +36,27 @@
 #include <linux/usb/serial.h>
 #include <linux/serial.h>
 #include "usb-wwan.h"
+#include <linux/mdm_hsic_pm.h>
 
 static int debug;
+#if defined(CONFIG_MACH_JA_KOR_LGT)
+static void usb_wwan_mdm_checksync(struct work_struct *work)
+{
+
+	struct usb_wwan_intf_private *intfdata =
+			container_of(work, struct usb_wwan_intf_private,
+					sync_check_work.work);
+	
+	if (atomic_read(&intfdata->sync_read_cnt)) {
+		if(intfdata->temp_tty) {
+			pr_info("mdm: efs, %s(), Call tty_flip_buffer_push again\n", __func__);
+			tty_flip_buffer_push(intfdata->temp_tty);
+		} else {
+			pr_info("mdm: efs, %s(), !intfdata->temp_tty\n", __func__);
+		}
+	}
+}
+#endif
 
 void usb_wwan_dtr_rts(struct usb_serial_port *port, int on)
 {
@@ -224,6 +243,14 @@ int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 		pr_info("mdm: efs, write %d chars", count);
 #endif
 
+#if defined(CONFIG_MACH_JA_KOR_LGT)
+	if (atomic_read(&intfdata->sync_read_cnt)) {
+		cancel_delayed_work(&intfdata->sync_check_work);
+		atomic_dec(&intfdata->sync_read_cnt);
+		intfdata->temp_tty=NULL;
+	}
+#endif
+
 	i = 0;
 	left = count;
 	for (i = 0; left > 0 && i < N_OUT_URB; i++) {
@@ -286,7 +313,6 @@ EXPORT_SYMBOL(usb_wwan_write);
 
 #ifdef CONFIG_MDM_HSIC_PM
 #define HELLO_PACKET_SIZE 48
-static int hello_packet_rx;
 #endif
 static void usb_wwan_indat_callback(struct urb *urb)
 {
@@ -296,7 +322,7 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
-	int rx_len = urb->actual_length;
+	int rx_len = urb->actual_length, added;
 	struct usb_wwan_intf_private *intfdata;
 	struct usb_device *udev;
 
@@ -348,8 +374,21 @@ handle_rx:
 						hello_packet_rx = 0;
 				}
 #endif
-				tty_insert_flip_string(tty, data, rx_len);
+				added = tty_insert_flip_string(tty, data, rx_len);
+				if(added != rx_len)
+					pr_info("mdm: rx_len:(%d)!= added:(%d)\n", rx_len, added);
+
 				tty_flip_buffer_push(tty);
+#if defined(CONFIG_MACH_JA_KOR_LGT)
+				if (udev->actconfig->desc.bNumInterfaces == 9) {
+					if((16384 == rx_len) && (added == rx_len)) {
+						intfdata->temp_tty = tty;
+						queue_delayed_work(intfdata->wq,
+							&intfdata->sync_check_work, msecs_to_jiffies(5000));
+						atomic_inc(&intfdata->sync_read_cnt);
+					}
+				}
+#endif
 			} else
 				dbg("%s: empty read urb received", __func__);
 			tty_kref_put(tty);
@@ -651,6 +690,15 @@ set_port_data:
 			dbg("%s: submit irq_in urb failed %d", __func__, err);
 	}
 	usb_wwan_setup_urbs(serial);
+#if defined(CONFIG_MACH_JA_KOR_LGT)
+	atomic_set(&data->sync_read_cnt, 0);
+	INIT_DELAYED_WORK(&data->sync_check_work, usb_wwan_mdm_checksync);
+
+	data->wq = create_singlethread_workqueue("usbwwand");
+	if (!data->wq) {
+		pr_err("%s: fail to create wq\n", __func__);
+	}
+#endif
 	return 0;
 
 bail_out_error2:
@@ -701,6 +749,14 @@ void usb_wwan_release(struct usb_serial *serial)
 #endif
 
 	dbg("%s", __func__);
+#if defined(CONFIG_MACH_JA_KOR_LGT)
+	if (atomic_read(&data->sync_read_cnt)) {
+		cancel_delayed_work(&data->sync_check_work);
+		atomic_set(&data->sync_read_cnt, 0);
+		data->temp_tty=NULL;
+	}
+	destroy_workqueue(data->wq);
+#endif
 	/* Now free them */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];

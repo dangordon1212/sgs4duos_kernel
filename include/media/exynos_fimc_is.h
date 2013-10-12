@@ -312,9 +312,9 @@ struct exynos5_platform_fimc_is {
 	struct exynos5_fimc_is_sensor_info
 		*sensor_info[FIMC_IS_MAX_CAMIF_CLIENTS];
 	struct exynos5_sensor_gpio_info *gpio_info;
-	int	flag_power_on[FLITE_ID_END];
+	bool	flag_power_on[FLITE_ID_END];
 	int	 (*cfg_gpio)(struct platform_device *pdev,
-				int channel, bool flag_on);
+				u32 channel, bool flag_on);
 	int	 (*clk_cfg)(struct platform_device *pdev);
 	int	 (*clk_on)(struct platform_device *pdev);
 	int	 (*clk_off)(struct platform_device *pdev);
@@ -322,13 +322,15 @@ struct exynos5_platform_fimc_is {
 							int sensor_id);
 	int	 (*sensor_power_off)(struct platform_device *pdev,
 							int sensor_id);
+	int	 (*print_cfg)(struct platform_device *pdev,
+				u32 channel);
 };
 
 extern void exynos5_fimc_is_set_platdata(struct exynos5_platform_fimc_is *pd);
 
 /* defined by architecture to configure gpio */
 extern int exynos5_fimc_is_cfg_gpio(struct platform_device *pdev,
-					int channel, bool flag_on);
+					u32 channel, bool flag_on);
 
 /* platform specific clock functions */
 extern int exynos5_fimc_is_cfg_clk(struct platform_device *pdev);
@@ -338,5 +340,7 @@ extern int exynos5_fimc_is_sensor_power_on(struct platform_device *pdev,
 							int sensor_id);
 extern int exynos5_fimc_is_sensor_power_off(struct platform_device *pdev,
 							int sensor_id);
+extern int exynos5_fimc_is_print_cfg(struct platform_device *pdev, u32 channel);
+
 #endif
 #endif /* EXYNOS_FIMC_IS_H_ */

@@ -24,6 +24,7 @@
 #define CHIP_ID		"SHTC1"
 
 #define CP_THM_ADC_SAMPLING_CNT	7
+#define DONE_CAL	3
 
 static int cp_thm_get_adc_data(struct ssp_data *data)
 {
@@ -107,14 +108,14 @@ static ssize_t engine_version_show(struct device *dev,
 {
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	pr_err("[SSP] %s - engine_ver = %s_%s\n",
+	pr_info("[SSP] %s - engine_ver = %s_%s\n",
 		__func__, CONFIG_SENSORS_SSP_SHTC1_VER, data->comp_engine_ver);
 
 	return sprintf(buf, "%s_%s\n",
 		CONFIG_SENSORS_SSP_SHTC1_VER, data->comp_engine_ver);
 }
 
-ssize_t engine_version_store(struct device *dev,
+static ssize_t engine_version_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct ssp_data *data = dev_get_drvdata(dev);
@@ -123,8 +124,35 @@ ssize_t engine_version_store(struct device *dev,
 	data->comp_engine_ver =
 		    kzalloc(((strlen(buf)+1) * sizeof(char)), GFP_KERNEL);
 	strncpy(data->comp_engine_ver, buf, strlen(buf)+1);
-	pr_err("[SSP] %s - engine_ver = %s, %s\n",
+	pr_info("[SSP] %s - engine_ver = %s, %s\n",
 		__func__, data->comp_engine_ver, buf);
+
+	return size;
+}
+
+static ssize_t engine_version2_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ssp_data *data = dev_get_drvdata(dev);
+
+	pr_info("[SSP] %s - engine_ver2 = %s_%s\n",
+		__func__, CONFIG_SENSORS_SSP_SHTC1_VER, data->comp_engine_ver2);
+
+	return sprintf(buf, "%s_%s\n",
+		CONFIG_SENSORS_SSP_SHTC1_VER, data->comp_engine_ver2);
+}
+
+static ssize_t engine_version2_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct ssp_data *data = dev_get_drvdata(dev);
+
+	kfree(data->comp_engine_ver2);
+	data->comp_engine_ver2 =
+		    kzalloc(((strlen(buf)+1) * sizeof(char)), GFP_KERNEL);
+	strncpy(data->comp_engine_ver2, buf, strlen(buf)+1);
+	pr_info("[SSP] %s - engine_ver2 = %s, %s\n",
+		__func__, data->comp_engine_ver2, buf);
 
 	return size;
 }
@@ -150,7 +178,7 @@ static ssize_t pam_temp_show(struct device *dev,
 	int adc, temp;
 
 #if defined(CONFIG_MACH_J_CHN_CTC)
-	printk("[SSP] pam_temp_show : %d", data->ap_rev);
+	pr_info("[SSP] %s : %d", __func__, data->ap_rev);
 	if((data->ap_rev) < 7)	/* HW REV12 == 7*/
 		temp = -990;
 	else
@@ -218,10 +246,30 @@ static ssize_t temphumidity_compengine_reset(struct device *dev,
 	return sprintf(buf, "%d\n", 1);
 }
 
+ssize_t temphumidity_send_accuracy(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct ssp_data *data = dev_get_drvdata(dev);
+	u8 accuracy;
+
+	if (kstrtou8(buf, 10, &accuracy) < 0) {
+		pr_err("[SSP] %s - read buf is fail(%s)\n", __func__, buf);
+		return size;
+	}
+
+	if (accuracy == DONE_CAL)
+		ssp_send_cmd(data, MSG2SSP_AP_TEMPHUMIDITY_CAL_DONE);
+	pr_info("[SSP] %s - accuracy = %d\n", __func__, accuracy);
+
+	return size;
+}
+
 static DEVICE_ATTR(name, S_IRUGO, temphumidity_name_show, NULL);
 static DEVICE_ATTR(vendor, S_IRUGO, temphumidity_vendor_show, NULL);
 static DEVICE_ATTR(engine_ver, S_IRUGO | S_IWUSR | S_IWGRP,
 	engine_version_show, engine_version_store);
+static DEVICE_ATTR(engine_ver2, S_IRUGO | S_IWUSR | S_IWGRP,
+	engine_version2_show, engine_version2_store);
 static DEVICE_ATTR(cp_thm, S_IRUGO,
 	pam_adc_show, NULL);
 static DEVICE_ATTR(cp_temperature, S_IRUGO,
@@ -230,15 +278,19 @@ static DEVICE_ATTR(crc_check, S_IRUGO,
 	temphumidity_crc_check, NULL);
 static DEVICE_ATTR(reset, S_IRUGO,
 	temphumidity_compengine_reset, NULL);
+static DEVICE_ATTR(send_accuracy,  S_IWUSR | S_IWGRP,
+	NULL, temphumidity_send_accuracy);
 
 static struct device_attribute *temphumidity_attrs[] = {
 	&dev_attr_name,
 	&dev_attr_vendor,
 	&dev_attr_engine_ver,
+	&dev_attr_engine_ver2,
 	&dev_attr_cp_thm,
 	&dev_attr_cp_temperature,
 	&dev_attr_crc_check,
 	&dev_attr_reset,
+	&dev_attr_send_accuracy,
 	NULL,
 };
 
@@ -265,5 +317,8 @@ void remove_temphumidity_factorytest(struct ssp_data *data)
 	if (data->pdev_pam_temp)
 		platform_device_put(data->pdev_pam_temp);
 	sensors_unregister(data->temphumidity_device, temphumidity_attrs);
-	kfree(data->comp_engine_ver);
+	if (data->comp_engine_ver)
+		kfree(data->comp_engine_ver);
+	if (data->comp_engine_ver2)
+		kfree(data->comp_engine_ver2);
 }

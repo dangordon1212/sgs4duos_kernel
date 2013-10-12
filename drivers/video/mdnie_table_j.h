@@ -3,7 +3,7 @@
 
 #include "mdnie.h"
 
-/* mdnie_table_j_20130325.h */
+/* mdnie_table_j_20130403.h */
 
 static unsigned short tune_camera[] = {
 	/*start JA camera*/
@@ -57,8 +57,8 @@ static unsigned short tune_auto_camera[] = {
 	0x0047, 0x70f0,	/*CC lut r 112 240*/
 	0x0048, 0x80ff,	/*CC lut r 128 255*/
 	0x0071, 0xff00,	/*SCR RrCr*/
-	0x0072, 0x1cff,	/*SCR RgCg*/
-	0x0073, 0x1cff,	/*SCR RbCb*/
+	0x0072, 0x00ff,	/*SCR RgCg*/
+	0x0073, 0x00ff,	/*SCR RbCb*/
 	0x0074, 0x00ff,	/*SCR GrMr*/
 	0x0075, 0xff00,	/*SCR GgMg*/
 	0x0076, 0x00ff,	/*SCR GbMb*/
@@ -393,8 +393,8 @@ static unsigned short tune_standard_video[] = {
 	0x0047, 0x70f0,	/*CC lut r 112 240*/
 	0x0048, 0x80ff,	/*CC lut r 128 255*/
 	0x0071, 0xff00,	/*SCR RrCr*/
-	0x0072, 0x00ff,	/*SCR RgCg*/
-	0x0073, 0x00ff,	/*SCR RbCb*/
+	0x0072, 0x1cff,	/*SCR RgCg*/
+	0x0073, 0x1cff,	/*SCR RbCb*/
 	0x0074, 0x00ff,	/*SCR GrMr*/
 	0x0075, 0xff00,	/*SCR GgMg*/
 	0x0076, 0x00ff,	/*SCR GbMb*/
@@ -436,8 +436,8 @@ static unsigned short tune_standard_gallery[] = {
 	0x0047, 0x70f0,	/*CC lut r 112 240*/
 	0x0048, 0x80ff,	/*CC lut r 128 255*/
 	0x0071, 0xff00,	/*SCR RrCr*/
-	0x0072, 0x00ff,	/*SCR RgCg*/
-	0x0073, 0x00ff,	/*SCR RbCb*/
+	0x0072, 0x1cff,	/*SCR RgCg*/
+	0x0073, 0x1cff,	/*SCR RbCb*/
 	0x0074, 0x00ff,	/*SCR GrMr*/
 	0x0075, 0xff00,	/*SCR GgMg*/
 	0x0076, 0x00ff,	/*SCR GbMb*/
@@ -513,8 +513,8 @@ static unsigned short tune_standard_browser[] = {
 	0x0047, 0x70f0,	/*CC lut r 112 240*/
 	0x0048, 0x80ff,	/*CC lut r 128 255*/
 	0x0071, 0xff00,	/*SCR RrCr*/
-	0x0072, 0x00ff,	/*SCR RgCg*/
-	0x0073, 0x00ff,	/*SCR RbCb*/
+	0x0072, 0x1cff,	/*SCR RgCg*/
+	0x0073, 0x1cff,	/*SCR RbCb*/
 	0x0074, 0x00ff,	/*SCR GrMr*/
 	0x0075, 0xff00,	/*SCR GgMg*/
 	0x0076, 0x00ff,	/*SCR GbMb*/
@@ -1138,8 +1138,8 @@ static unsigned short tune_auto_video[] = {
 	0x0047, 0x70f0,	/*CC lut r 112 240*/
 	0x0048, 0x80ff,	/*CC lut r 128 255*/
 	0x0071, 0xff00,	/*SCR RrCr*/
-	0x0072, 0x1cff,	/*SCR RgCg*/
-	0x0073, 0x1cff,	/*SCR RbCb*/
+	0x0072, 0x00ff,	/*SCR RgCg*/
+	0x0073, 0x00ff,	/*SCR RbCb*/
 	0x0074, 0x00ff,	/*SCR GrMr*/
 	0x0075, 0xff00,	/*SCR GgMg*/
 	0x0076, 0x00ff,	/*SCR GbMb*/
@@ -1181,8 +1181,8 @@ static unsigned short tune_auto_gallery[] = {
 	0x0047, 0x70f0,	/*CC lut r 112 240*/
 	0x0048, 0x80ff,	/*CC lut r 128 255*/
 	0x0071, 0xff00,	/*SCR RrCr*/
-	0x0072, 0x1cff,	/*SCR RgCg*/
-	0x0073, 0x1cff,	/*SCR RbCb*/
+	0x0072, 0x00ff,	/*SCR RgCg*/
+	0x0073, 0x00ff,	/*SCR RbCb*/
 	0x0074, 0x00ff,	/*SCR GrMr*/
 	0x0075, 0xff00,	/*SCR GgMg*/
 	0x0076, 0x00ff,	/*SCR GbMb*/
@@ -1258,8 +1258,8 @@ static unsigned short tune_auto_browser[] = {
 	0x0047, 0x70f0,	/*CC lut r 112 240*/
 	0x0048, 0x80ff,	/*CC lut r 128 255*/
 	0x0071, 0xff00,	/*SCR RrCr*/
-	0x0072, 0x1cff,	/*SCR RgCg*/
-	0x0073, 0x1cff,	/*SCR RbCb*/
+	0x0072, 0x00ff,	/*SCR RgCg*/
+	0x0073, 0x00ff,	/*SCR RbCb*/
 	0x0074, 0x00ff,	/*SCR GrMr*/
 	0x0075, 0xff00,	/*SCR GgMg*/
 	0x0076, 0x00ff,	/*SCR GbMb*/

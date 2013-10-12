@@ -134,6 +134,7 @@ err_g_clk:
 }
 
 #ifdef CONFIG_ARM_EXYNOS5410_BUS_DEVFREQ
+extern spinlock_t int_div_lock;
 int s5p_mfc_clock_set_rate(struct s5p_mfc_dev *dev, unsigned long rate)
 {
 	struct clk *parent_clk = NULL;
@@ -150,7 +151,10 @@ int s5p_mfc_clock_set_rate(struct s5p_mfc_dev *dev, unsigned long rate)
 			goto err_g_clk;
 		}
 
+		spin_lock(&int_div_lock);
 		clk_set_rate(parent_clk, rate * 1000);
+		spin_unlock(&int_div_lock);
+
 		clk_put(parent_clk);
 	}
 
@@ -219,6 +223,7 @@ void s5p_mfc_clock_off(void)
 	if (IS_MFCV6(dev)) {
 		spin_lock_irqsave(&pm->clklock, flags);
 		if ((atomic_dec_return(&clk_ref) == 0) &&
+				(atomic_read(&dev->pm.power) == 1) &&
 				FW_HAS_BUS_RESET(dev)) {
 			s5p_mfc_write_reg(0x1, S5P_FIMV_MFC_BUS_RESET_CTRL);
 

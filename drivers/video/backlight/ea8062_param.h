@@ -137,7 +137,7 @@ static const unsigned char SEQ_FRAME_TSP_OFF[] = {
 
 static const unsigned char SEQ_FRAME_TSP_ON[] = {
 	0xFF,
-	0x33, 0x33,
+	0x00, 0x26,
 };
 
 static const unsigned char SEQ_SRC_CTL[] = {
@@ -205,16 +205,16 @@ static const unsigned char SEQ_PSRE_MODE_SET3[] = {
 };
 
 enum {
-	TSET_MINUS_20_DEGREE,
-	TSET_MINUS_0_DEGREE,
-	TSET_1_DEGREE,
+	TSET_25_DEGREES,
+	TSET_MINUS_0_DEGREES,
+	TSET_MINUS_20_DEGREES,
 	TSET_STATUS_MAX,
 };
 
 static const unsigned char TSET_TABLE[TSET_STATUS_MAX] = {
-	0x94,	/* -20 degree */
-	0x80,	/* -0 degree */
 	0x19,	/* +25 degree */
+	0x80,	/* -0 degree */
+	0x94,	/* -20 degree */
 };
 
 enum {
@@ -264,9 +264,8 @@ static const unsigned char ELVSS_TABLE[ELVSS_STATUS_MAX] = {
 
 enum {
 	ACL_STATUS_0P,
-	ACL_STATUS_30P,
-	ACL_STATUS_30P_RE_LOW,
-	ACL_STATUS_30P_RE_MID,
+	ACL_STATUS_40P,
+	ACL_STATUS_40P_RE_LOW,
 	ACL_STATUS_MAX
 };
 
@@ -275,25 +274,19 @@ static const unsigned char SEQ_ACL_OFF[] = {
 	0x00
 };
 
-static const unsigned char SEQ_ACL_30[] = {
-	0x55, 0x01,
+static const unsigned char SEQ_ACL_40[] = {
+	0x55, 0x02,
 	0x00
 };
 
-static const unsigned char SEQ_ACL_30_RE_LOW[] = {
-	0x55, 0x41,
-	0x00
-};
-
-static const unsigned char SEQ_ACL_30_RE_MID[] = {
-	0x55, 0x51,
+static const unsigned char SEQ_ACL_40_RE_LOW[] = {
+	0x55, 0x42,
 	0x00
 };
 
 static const unsigned char *ACL_CUTOFF_TABLE[ACL_STATUS_MAX] = {
 	SEQ_ACL_OFF,
-	SEQ_ACL_30,
-	SEQ_ACL_30_RE_LOW,
-	SEQ_ACL_30_RE_MID,
+	SEQ_ACL_40,
+	SEQ_ACL_40_RE_LOW,
 };
 #endif /* __EA8062_PARAM_H__ */

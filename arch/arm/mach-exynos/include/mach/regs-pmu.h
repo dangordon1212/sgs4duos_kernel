@@ -23,6 +23,9 @@
 
 #define EXYNOS_CENTRAL_SEQ_OPTION		EXYNOS_PMUREG(0x0208)
 
+#define EXYNOS_SEQ_TRANSITION(_nr)		EXYNOS_PMUREG(0x0220 + (_nr) * 4)
+#define EXYNOS_SEQ_COREBLK_TRANSITION(_nr)	EXYNOS_PMUREG(0x0260 + (_nr) * 4)
+
 #define S5P_SWRESET				EXYNOS_PMUREG(0x0400)
 #define EXYNOS_SWRESET				EXYNOS_PMUREG(0x0400)
 
@@ -341,6 +344,21 @@
 /* Only for EXYNOS5410 */
 /* for EXYNOS_MASK_WDT_RESET_REQUEST */
 #define EXYNOS5410_SYS_WDTRESET				(1 << 0)
+
+#define EXYNOS5410_LPI_MASK0				EXYNOS_PMUREG(0x0004)
+#define EXYNOS5410_LPI_MASK0_FD				(1 << 19) /* FD */
+#define EXYNOS5410_LPI_MASK0_OTHERS			( \
+							(1 << 12) | /* ARM */ \
+							(1 << 20) | /* ISP */ \
+							(1 << 21) | /* SCC */ \
+							(1 << 22) | /* SCP */ \
+							(1 << 23) | /* DRC */ \
+							(1 << 26) | /* N3D */ \
+							(1 << 27) | /* DIS */ \
+							(1 << 28) /* ODC */ \
+							)
+
+#define EXYNOS5410_CG_STATUS0				EXYNOS_PMUREG(0x0914)
 
 #define EXYNOS5410_LPI_BUS_MASK0			EXYNOS_PMUREG(0x159C)
 #define EXYNOS5410_LPI_BUS_MASK0_ISP0			(1 << 7)

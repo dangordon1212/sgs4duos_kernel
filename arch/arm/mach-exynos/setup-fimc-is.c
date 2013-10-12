@@ -545,7 +545,7 @@ static int exynos5_fimc_is_pin_cfg_exception(struct platform_device *pdev,
 	int ret = 0;
 	int i = 0;
 	int j = 0; 
-	int flag_found = 0; 	
+	int flag_found = 0;
 
 	struct exynos5_platform_fimc_is *dev = pdev->dev.platform_data;
 	struct gpio_set *gpio;
@@ -592,7 +592,7 @@ static int exynos5_fimc_is_pin_cfg_exception(struct platform_device *pdev,
 	return ret;
 }
 
-int exynos5_fimc_is_pin_cfg(struct platform_device *pdev, int channel, int flag_on)
+int exynos5_fimc_is_pin_cfg(struct platform_device *pdev, u32 channel, bool flag_on)
 {
 	int ret = 0;
 	int i = 0;
@@ -602,12 +602,14 @@ int exynos5_fimc_is_pin_cfg(struct platform_device *pdev, int channel, int flag_
 
 	pr_debug("exynos5_fimc_is_pin_cfg\n");
 
-	if (flag_on == 1) {
-		if (0 < dev->flag_power_on[channel])
-			return ret;
-		else
-			dev->flag_power_on[channel] = 1;
+	if (dev->flag_power_on[channel] == flag_on) {
+		pr_warn("sensor ch%d is already set(%d)", channel, flag_on);
+		goto p_err;
+	} else {
+		dev->flag_power_on[channel] = flag_on;
+	}
 
+	if (flag_on == 1) {
 		for (i = 0; i < FIMC_IS_MAX_GPIO_NUM; i++) {
 			gpio = &dev->gpio_info->cfg[i];
 
@@ -659,11 +661,6 @@ int exynos5_fimc_is_pin_cfg(struct platform_device *pdev, int channel, int flag_
 				gpio->count++;
 		}
 	} else {
-		if (dev->flag_power_on[channel] <= 0)
-			return ret;
-		else
-			dev->flag_power_on[channel] = 0;
-
 		for (i = FIMC_IS_MAX_GPIO_NUM - 1; i >= 0; i--) {
 			gpio = &dev->gpio_info->cfg[i];
 
@@ -722,12 +719,12 @@ int exynos5_fimc_is_pin_cfg(struct platform_device *pdev, int channel, int flag_
 		}
 	}
 
+p_err:
 	return ret;
-
 }
 
 int exynos5_fimc_is_cfg_gpio(struct platform_device *pdev,
-				int channel, bool flag_on)
+				u32 channel, bool flag_on)
 {
 	int ret = 0;
 
@@ -742,11 +739,81 @@ exit:
 	return ret;
 }
 
+int exynos5_fimc_is_print_cfg(struct platform_device *pdev, u32 channel)
+{
+	int ret = 0;
+	u32 i;
+	struct exynos5_platform_fimc_is *dev;
+	struct gpio_set *gpio;
+	struct regulator *regulator;
+
+	if (!pdev) {
+		pr_err("pdev is NULL\n");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	dev = pdev->dev.platform_data;
+	if (!dev) {
+		pr_err("dev is NULL\n");
+		ret = -EINVAL;
+		goto p_err;
+	}
+
+	for (i = 0; i < FIMC_IS_MAX_GPIO_NUM; i++) {
+		gpio = &dev->gpio_info->cfg[i];
+
+		if (gpio->flite_id != channel)
+			continue;
+
+		if (gpio->pin_type == PIN_GPIO) {
+			ret = gpio_request(gpio->pin, gpio->name);
+			if (ret) {
+				pr_err("Request GPIO error(%s)\n", gpio->name);
+				ret = -EINVAL;
+				goto p_err;
+			}
+
+			pr_err("%s cfg : %08X\n", gpio->name,
+				s3c_gpio_getcfg(gpio->pin));
+			pr_err("%s pud : %08X\n", gpio->name,
+				s3c_gpio_getpull(gpio->pin));
+			pr_err("%s str : %08X\n", gpio->name,
+				s5p_gpio_get_drvstr(gpio->pin));
+			pr_err("%s val : %08X\n", gpio->name,
+				gpio_get_value(gpio->pin));
+			pr_err("%s cnt : %08X\n", gpio->name,
+				gpio->count);
+
+			gpio_free(gpio->pin);
+		} else if (gpio->pin_type == PIN_REGULATOR) {
+			regulator = regulator_get(&(pdev->dev), gpio->name);
+			if (IS_ERR(regulator)) {
+				pr_err("%s : regulator_get(%s) fail\n",
+					__func__, gpio->name);
+				ret = PTR_ERR(regulator);
+				goto p_err;
+			}
+
+			pr_err("%s pwr : %08X\n", gpio->name,
+				regulator_is_enabled(regulator));
+
+			regulator_put(regulator);
+		} else {
+			pr_err("pin type is invalid(%d)\n", gpio->pin_type);
+		}
+	}
+
+p_err:
+	return ret;
+}
+
 static int cfg_gpio(struct gpio_set *gpio, int value)
 {
 	int ret;
 
 	pr_debug("gpio.pin:%d gpio.name:%s\n", gpio->pin, gpio->name);
+
 	ret = gpio_request(gpio->pin, gpio->name);
 	if (ret) {
 		pr_err("Request GPIO error(%s)\n", gpio->name);
@@ -1633,6 +1700,7 @@ int exynos5_fimc_is_sensor_power_on(struct platform_device *pdev,
 
 	pr_debug("exynos5_fimc_is_sensor_power_on(%d)\n",
 					sensor_id);
+
 	switch (sensor->sensor_id) {
 	case SENSOR_NAME_S5K4E5:
 		if (sensor->sensor_gpio.reset_peer.pin)

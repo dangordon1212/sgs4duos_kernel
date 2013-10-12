@@ -75,19 +75,26 @@ static inline bool is_outer_flushrange(size_t hole)
 		return false;	/* line-by-line flush */
 }
 
+void fimg2d_flush_cache_range(unsigned long, size_t);
+int fimg2d_fixup_user_fault(unsigned long address);
+
 static inline void fimg2d_dma_sync_inner(unsigned long addr, size_t size,
 		int dir)
 {
-	if (dir == DMA_TO_DEVICE)
+	if ((addr + size) < TASK_SIZE)
+		fimg2d_flush_cache_range(addr, size);
+	else
 		dmac_map_area((void *)addr, size, dir);
-	else if (dir == DMA_BIDIRECTIONAL)
-		dmac_flush_range((void *)addr, (void *)(addr + size));
 }
 
 static inline void fimg2d_dma_unsync_inner(unsigned long addr, size_t size,
 		int dir)
 {
-	if (dir == DMA_TO_DEVICE)
+	if (dir != DMA_FROM_DEVICE)
+		return;
+	if ((addr + size) < TASK_SIZE)
+		fimg2d_flush_cache_range(addr, size);
+	else
 		dmac_unmap_area((void *)addr, size, dir);
 }
 

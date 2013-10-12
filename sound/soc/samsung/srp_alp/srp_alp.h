@@ -69,8 +69,8 @@ struct srp_for_suspend {
 };
 
 struct srp_info {
-	struct delayed_work    delayed_work;
-	struct platform_device *pdev;
+	struct delayed_work	delayed_work;
+	struct platform_device	*pdev;
 	struct exynos_srp_pdata *pdata;
 	struct srp_buf_info	ibuf_info;
 	struct srp_buf_info	obuf_info;
@@ -137,6 +137,7 @@ struct srp_info {
 
 	/* Parameter to control Runtime PM */
 	void	*pm_info;
+	int	pm_noti_suspended;
 };
 
 /* SRP Pending On/Off status */

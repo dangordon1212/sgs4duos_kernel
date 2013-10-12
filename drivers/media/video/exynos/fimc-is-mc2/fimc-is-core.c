@@ -65,11 +65,6 @@ extern int fimc_is_vdo_video_probe(void *data);
 struct pm_qos_request exynos5_isp_qos_dev;
 struct pm_qos_request exynos5_isp_qos_mem;
 
-struct device *get_is_dev(void)
-{
-	return is_dev;
-}
-
 static int fimc_is_ischain_allocmem(struct fimc_is_core *this)
 {
 	int ret = 0;
@@ -78,7 +73,7 @@ static int fimc_is_ischain_allocmem(struct fimc_is_core *this)
 	dbg_ischain("Allocating memory for FIMC-IS firmware.\n");
 
 	fw_cookie = vb2_ion_private_alloc(this->mem.alloc_ctx,
-				FIMC_IS_A5_MEM_SIZE + FIMC_IS_A5_SEN_SIZE +
+				FIMC_IS_A5_MEM_SIZE +
 #ifdef ENABLE_ODC
 				SIZE_ODC_INTERNAL_BUF * NUM_ODC_INTERNAL_BUF +
 #endif
@@ -489,6 +484,7 @@ static int exynos5_fimc_mif_notifier(struct notifier_block *notifier,
 	switch (event) {
 	case MIF_DEVFREQ_PRECHANGE:
 		if (info->new == 800000) {
+			spin_lock(&int_div_lock);
 			cfg = __raw_readl(EXYNOS5_CLKDIV_TOP1);
 			cfg &= ~(0x7 << 20);
 			cfg |= (0x1 << 20);
@@ -501,12 +497,14 @@ static int exynos5_fimc_mif_notifier(struct notifier_block *notifier,
 			if (!timeout)
 				pr_err("%s: timeout for clock diving #1\n",
 					__func__);
-
+			spin_unlock(&int_div_lock);
 		}
 		break;
 	case MIF_DEVFREQ_POSTCHANGE:
                if (info->new == 400000) {
                         if ((__raw_readl(EXYNOS5_BPLL_CON0) & 0x7) == 2) {
+				udelay(500);
+				spin_lock(&int_div_lock);
                                 cfg = __raw_readl(EXYNOS5_CLKDIV_TOP1);
                                 cfg &= ~(0x7 << 20);
                                 cfg |= (0x0 << 20);
@@ -519,7 +517,7 @@ static int exynos5_fimc_mif_notifier(struct notifier_block *notifier,
 				if (!timeout)
 					pr_err("%s: timeout for clock "
 						"diving #1\n",__func__);
-				mdelay(3);
+				spin_unlock(&int_div_lock);
                         } else {
 				pr_err("%s: CRITCAL error\n",__func__);
 	                }
@@ -577,6 +575,11 @@ int fimc_is_set_dvfs(struct fimc_is_core *core,
 	/* check current level */
 	if (core->clock.dvfs_level == __level)
 		goto exit;
+
+#ifdef CONFIG_TARGET_LOCALE_KOR	//KOR only for blackbox
+	if (__level == DVFS_L1_1)
+		pr_info("Blackbox mode\n");
+#endif
 
 	/* i2c lock */
 	ret = fimc_is_itf_i2c_lock(ischain, i2c_clk, true);
@@ -1751,7 +1754,6 @@ static int fimc_is_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_PM_RUNTIME)
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 #endif
 
 	camera_class = class_create(THIS_MODULE, "camera");
@@ -1805,6 +1807,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 
 	/* init spin_lock for clock gating */
 	spin_lock_init(&core->slock_clock_gate);
+	mutex_init(&core->clock.lock);
 
 	return 0;
 

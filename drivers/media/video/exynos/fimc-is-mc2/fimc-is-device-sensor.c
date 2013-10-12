@@ -242,8 +242,16 @@ static struct _csis_hsync_settle csis_hsync_settle[] = {
 		.framerate	= 60,
 		.settle		= 9,
 	},
-	/* S5K6B2, 1456x1090@24fps */
+	/* IMX135, 1936x1090@15fps */
 	[18] = {
+		.channel	= CSI_ID_A,
+		.width		= 1936,
+		.height		= 1090,
+		.framerate	= 15,
+		.settle		= 7,
+	},
+	/* S5K6B2, 1456x1090@24fps */
+	[19] = {
 		.channel	= CSI_ID_C,
 		.width		= 1456,
 		.height		= 1090,
@@ -251,7 +259,7 @@ static struct _csis_hsync_settle csis_hsync_settle[] = {
 		.settle		= 13,
 	},
 	/* S5K6B2, 1936x1090@24fps */
-	[19] = {
+	[20] = {
 		.channel	= CSI_ID_C,
 		.width		= 1936,
 		.height		= 1090,
@@ -259,7 +267,7 @@ static struct _csis_hsync_settle csis_hsync_settle[] = {
 		.settle		= 13,
 	},
 	/* S5K6B2, 1456x1090@30fps */
-	[20] = {
+	[21] = {
 		.channel	= CSI_ID_C,
 		.width		= 1456,
 		.height		= 1090,
@@ -267,7 +275,7 @@ static struct _csis_hsync_settle csis_hsync_settle[] = {
 		.settle		= 16,
 	},
 	/* S5K6B2, 1936x1090@30fps */
-	[21] = {
+	[22] = {
 		.channel	= CSI_ID_C,
 		.width		= 1936,
 		.height		= 1090,
@@ -544,6 +552,7 @@ int fimc_is_sensor_probe(struct fimc_is_device_sensor *device, u32 channel)
 	clear_bit(FIMC_IS_SENSOR_OPEN, &device->state);
 	clear_bit(FIMC_IS_SENSOR_FRONT_START, &device->state);
 	clear_bit(FIMC_IS_SENSOR_BACK_START, &device->state);
+	clear_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
 	spin_lock_init(&device->slock_state);
 
 	ret = fimc_is_flite_probe(&device->flite, (u32)device);
@@ -953,6 +962,7 @@ int fimc_is_sensor_open(struct fimc_is_device_sensor *device,
 
 	clear_bit(FIMC_IS_SENSOR_FRONT_START, &device->state);
 	clear_bit(FIMC_IS_SENSOR_BACK_START, &device->state);
+	clear_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
 	device->vctx = vctx;
 	device->active_sensor = NULL;
 	device->ischain = NULL;
@@ -988,7 +998,7 @@ int fimc_is_sensor_open(struct fimc_is_device_sensor *device,
 					device->flite.channel,
 					true);
 	} else {
-		err("failed to sensor_power_on\n");
+		err("sensor power on is fail");
 		ret = -EINVAL;
 		goto p_err;
 	}
@@ -1051,7 +1061,7 @@ int fimc_is_sensor_close(struct fimc_is_device_sensor *device)
 					device->flite.channel,
 					false);
 	} else {
-		err("failed to sensor_power_on\n");
+		err("sesnor power off is fail");
 		ret = -EINVAL;
 		goto exit_rsc;
 	}
@@ -1198,6 +1208,7 @@ int fimc_is_sensor_back_start(struct fimc_is_device_sensor *device,
 		goto exit;
 	}
 
+	clear_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
 	frame.o_width = device->width;
 	frame.o_height = device->height;
 	frame.offs_h = 0;
@@ -1234,10 +1245,8 @@ int fimc_is_sensor_back_stop(struct fimc_is_device_sensor *device)
 	framemgr = GET_DST_FRAMEMGR(device->vctx);
 	flite = &device->flite;
 
-	if (test_bit(FIMC_IS_SENSOR_FRONT_START, &device->state)) {
-		wait = true;
-	} else {
-		warn("front already stop, no waiting...");
+	if (test_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state)) {
+		warn("fimc_is_flite_stop, no waiting...");
 		wait = false;
 	}
 
@@ -1387,6 +1396,7 @@ int fimc_is_sensor_front_stop(struct fimc_is_device_sensor *device)
 	}
 
 	stop_mipi_csi(device->active_sensor->csi_ch);
+	set_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
 
 exit:
 	pr_info("[FRT:D:%d] %s(%d)\n", device->instance, __func__, ret);

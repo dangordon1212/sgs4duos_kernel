@@ -45,7 +45,8 @@ struct fimc_is_enum_sensor {
 enum fimc_is_sensor_state {
 	FIMC_IS_SENSOR_OPEN,
 	FIMC_IS_SENSOR_FRONT_START,
-	FIMC_IS_SENSOR_BACK_START
+	FIMC_IS_SENSOR_BACK_START,
+	FIMC_IS_SENSOR_BACK_NOWAIT_STOP
 };
 
 struct fimc_is_device_sensor {

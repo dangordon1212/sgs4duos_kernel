@@ -1249,7 +1249,7 @@ static void set_slavewake(struct link_pm_data *pm_data, int val)
 		if (gpio_get_value(pm_data->gpio_link_slavewake)) {
 			mif_info("warn.. slavewake toggle\n");
 			gpio_set_value(pm_data->gpio_link_slavewake, 0);
-			usleep_range(10000, 20000);
+			msleep(20);
 		}
 		gpio_set_value(pm_data->gpio_link_slavewake, 1);
 	}
@@ -1288,7 +1288,7 @@ static int xmm626x_gpio_l3_resume(struct link_pm_data *pm_data)
 
 	if (!get_hostwake(pm_data)) {
 		set_slavewake(pm_data, 1);
-		usleep_range(10000, 20000);
+		msleep(20);
 	}
 
 	gpio_set_value(pm_data->gpio_link_active, 1);

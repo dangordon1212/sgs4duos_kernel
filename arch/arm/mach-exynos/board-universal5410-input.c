@@ -486,6 +486,9 @@ static int synaptics_power(bool on)
 	if (on) {
 		regulator_enable(regulator_vdd);
 		regulator_enable(regulator_avdd);
+
+		s3c_gpio_cfgpin(GPIO_TSP_nINT_SECURE, S3C_GPIO_SFN(0xf));
+		s3c_gpio_setpull(GPIO_TSP_nINT_SECURE, S3C_GPIO_PULL_NONE);
 	} else {
 		/*
 		 * TODO: If there is a case the regulator must be disabled
@@ -495,6 +498,9 @@ static int synaptics_power(bool on)
 			regulator_disable(regulator_vdd);
 		if (regulator_is_enabled(regulator_avdd))
 			regulator_disable(regulator_avdd);
+
+		s3c_gpio_cfgpin(GPIO_TSP_nINT_SECURE, S3C_GPIO_INPUT);
+		s3c_gpio_setpull(GPIO_TSP_nINT_SECURE, S3C_GPIO_PULL_NONE);
 	}
 
 	enabled = on;

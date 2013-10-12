@@ -550,7 +550,7 @@ static const struct file_operations bL_switcher_fops = {
 };
 
 static struct miscdevice bL_switcher_device = {
-	MISC_DYNAMIC_MINOR,
+	BL_SWITCHER_MINOR,
 	"b.L_switcher",
 	&bL_switcher_fops
 };
@@ -646,7 +646,7 @@ static const struct file_operations bL_operator_fops = {
 };
 
 static struct miscdevice bL_operator_device = {
-	MISC_DYNAMIC_MINOR,
+	BL_OPERATOR_MINOR,
 	"b.L_operator",
 	&bL_operator_fops
 };

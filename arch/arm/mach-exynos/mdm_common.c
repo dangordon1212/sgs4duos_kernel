@@ -371,6 +371,9 @@ static void mdm_reconnect_fn(struct work_struct *work)
 	if (mdm_drv->shutdown)
 		return;
 
+	if (get_qmicm_mode(rmnet_pm_dev))
+		return;
+
 	if (mdm_check_main_connect(rmnet_pm_dev))
 		return;
 
@@ -411,7 +414,7 @@ void mdm_force_fatal(void)
 
 	force_dump = 1;
 
-	if (in_irq())
+	if (in_interrupt())
 		queue_work(mdm_queue, &mdm_fatal_work);
 	else {
 		notify_modem_fatal();
@@ -544,7 +547,7 @@ static irqreturn_t mdm_status_change(int irq, void *dev_id)
 		mdm_drv->mdm_ready = 0;
 		notify_modem_fatal();
 		subsystem_restart(EXTERNAL_MODEM);
-	} else if (value == 1) {
+	} else if (value == 1 && mdm_drv->mdm_ready == 1) {
 		cancel_delayed_work(&mdm2ap_status_check_work);
 		pr_info("%s: status = 1: mdm is now ready\n", __func__);
 		queue_work(mdm_queue, &mdm_status_work);

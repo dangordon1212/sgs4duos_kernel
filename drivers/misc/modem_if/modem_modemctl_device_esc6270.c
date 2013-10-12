@@ -52,6 +52,11 @@ static int esc6270_on(struct modem_ctl *mc)
 		return -ENXIO;
 	}
 
+	if (mc->gpio_cp_off) {
+		gpio_direction_input(mc->gpio_cp_off);
+		gpio_set_value(mc->gpio_cp_off, 0);
+	}
+
 	if (mc->gpio_reset_req_n)
 		gpio_set_value(mc->gpio_reset_req_n, 1);
 
@@ -74,6 +79,8 @@ static int esc6270_on(struct modem_ctl *mc)
 
 static int esc6270_off(struct modem_ctl *mc)
 {
+	struct link_device *ld = get_current_link(mc->iod);
+
 	pr_info("[MODEM_IF:ESC] esc6270_off()\n");
 
 #if 1
@@ -86,19 +93,13 @@ static int esc6270_off(struct modem_ctl *mc)
 	gpio_set_value(mc->gpio_cp_on, 0);
 
 	mc->iod->modem_state_changed(mc->iod, STATE_OFFLINE);
+	ld->mode = LINK_MODE_OFFLINE;
 
 	if (mc->gpio_cp_off) {
 		pr_info("[MODEM_IF:ESC] <%s> gpio_cp_off %d\n",
 			__func__, gpio_get_value(mc->gpio_cp_off));
 		gpio_direction_output(mc->gpio_cp_off, 1);
 		gpio_set_value(mc->gpio_cp_off, 1);
-	}
-
-	msleep(200);
-
-	if (mc->gpio_cp_off) {
-		gpio_direction_input(mc->gpio_cp_off);
-		gpio_set_value(mc->gpio_cp_off, 0);
 	}
 #endif
 
@@ -138,6 +139,11 @@ int esc6270_boot_on(struct modem_ctl *mc)
 #endif
 
 	pr_info("[MODEM_IF:ESC] <%s>\n", __func__);
+
+	if (mc->gpio_cp_off) {
+		gpio_direction_input(mc->gpio_cp_off);
+		gpio_set_value(mc->gpio_cp_off, 0);
+	}
 
 	/* Need to init uart byt gpio_flm_uart_sel GPIO */
 	if (!mc->gpio_cp_reset || !mc->gpio_flm_uart_sel) {

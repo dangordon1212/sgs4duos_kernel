@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
@@ -25,6 +26,20 @@
 #define LV2_SHIFT		12
 #define LV1_DESC_MASK		0x3
 #define LV2_DESC_MASK		0x2
+
+int fimg2d_fixup_user_fault(unsigned long address)
+{
+	int ret;
+
+	pr_info("%s: fault @ %#lx while cache flush\n", __func__, address);
+	ret = fixup_user_fault(current, current->mm, address, 0);
+	if (ret)
+		pr_info("%s: failed to fixup fault @ %#lx\n", __func__, address);
+	else
+		pr_info("%s: successed fixup fault @ %#lx\n", __func__, address);
+
+	return ret;
+}
 
 static inline unsigned long virt2phys(struct mm_struct *mm, unsigned long vaddr)
 {

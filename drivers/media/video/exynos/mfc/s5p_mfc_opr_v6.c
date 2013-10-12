@@ -383,12 +383,6 @@ int s5p_mfc_alloc_dev_context_buffer(struct s5p_mfc_dev *dev)
 	}
 
 	dev->ctx_buf.ofs = s5p_mfc_mem_daddr_priv(dev->ctx_buf.alloc);
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-	if (dev->num_drm_inst) {
-		iovmm_map_oto(dev->device, dev->ctx_buf.ofs, buf_size->dev_ctx);
-		dev->buf_oto_status |= OTO_BUF_COMMON_CTX;
-	}
-#endif
 	dev->ctx_buf.virt = s5p_mfc_mem_vaddr_priv(dev->ctx_buf.alloc);
 	if (!dev->ctx_buf.virt) {
 		s5p_mfc_mem_free_priv(dev->ctx_buf.alloc);
@@ -412,12 +406,6 @@ void s5p_mfc_release_dev_context_buffer(struct s5p_mfc_dev *dev)
 		return;
 	}
 	if (dev->ctx_buf.alloc) {
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-		if (dev->buf_oto_status & OTO_BUF_COMMON_CTX) {
-			iovmm_unmap_oto(dev->device, dev->ctx_buf.ofs);
-			dev->buf_oto_status &= ~OTO_BUF_COMMON_CTX;
-		}
-#endif
 		s5p_mfc_mem_free_priv(dev->ctx_buf.alloc);
 		dev->ctx_buf.alloc = NULL;
 		dev->ctx_buf.ofs = 0;
@@ -886,12 +874,20 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	else
 		WRITEL(1, S5P_FIMV_E_RC_BIT_RATE);
 
-	/* reaction coefficient, fixed value set from FW_111021 */
 	if (p->rc_frame) {
-		if (p->rc_reaction_coeff <= TIGHT_CBR_MAX)
-			WRITEL(S5P_FIMV_ENC_TIGHT_CBR, S5P_FIMV_E_RC_MODE);
-		else
-			WRITEL(S5P_FIMV_ENC_LOOSE_CBR, S5P_FIMV_E_RC_MODE);
+		if (FW_HAS_ADV_RC_MODE(dev)) {
+			if (p->rc_reaction_coeff <= TIGHT_CBR_MAX)
+				reg = S5P_FIMV_ENC_ADV_TIGHT_CBR;
+			else
+				reg = S5P_FIMV_ENC_ADV_CAM_CBR;
+		} else {
+			if (p->rc_reaction_coeff <= TIGHT_CBR_MAX)
+				reg = S5P_FIMV_ENC_TIGHT_CBR;
+			else
+				reg = S5P_FIMV_ENC_LOOSE_CBR;
+		}
+
+		WRITEL(reg, S5P_FIMV_E_RC_MODE);
 	}
 
 	/* extended encoder ctrl */
@@ -1169,6 +1165,14 @@ static int s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 		reg = READL(S5P_FIMV_E_H264_OPTIONS);
 		reg &= ~(0x1 << 30);
 		WRITEL(reg, S5P_FIMV_E_H264_OPTIONS);
+	}
+
+	/* pic_order_cnt_type = 0 for backward compatibilities */
+	if (FW_HAS_POC_TYPE_CTRL(dev)) {
+		reg = READL(S5P_FIMV_E_H264_OPTIONS_2);
+		reg &= ~(0x3 << 0);
+		reg |= (0x1 << 0); /* TODO: add new CID for this */
+		WRITEL(reg, S5P_FIMV_E_H264_OPTIONS_2);
 	}
 
 	/* hier qp enable */

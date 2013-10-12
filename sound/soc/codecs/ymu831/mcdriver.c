@@ -6301,7 +6301,7 @@ SINT32	McDrv_Ctrl(
 #endif
 #if !defined(CONFIG_MACH_J_CHN_CTC) && !defined(CONFIG_MACH_J_CHN_CU)
 	if(sdRet < 0) {
-		panic("\n!!!McDrv_Ctrl failed\n\n");
+		printk("\n!!!McDrv_Ctrl failed\n\n");
 	}
 #endif
 	return sdRet;

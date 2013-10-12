@@ -44,7 +44,7 @@ int print_fre_work_list(struct fimc_is_work_list *this)
 	if (!(this->id & TRACE_WORK_ID_MASK))
 		return 0;
 
-	printk(KERN_CONT "[INF] fre(%02X, %02d) :",
+	printk(KERN_ERR "[INF] fre(%02X, %02d) :",
 		this->id, this->work_free_cnt);
 
 	list_for_each(temp, &this->work_free_head) {
@@ -140,7 +140,7 @@ int print_req_work_list(struct fimc_is_work_list *this)
 	if (!(this->id & TRACE_WORK_ID_MASK))
 		return 0;
 
-	printk(KERN_CONT "[INF] req(%02X, %02d) :",
+	printk(KERN_ERR "[INF] req(%02X, %02d) :",
 		this->id, this->work_request_cnt);
 
 	list_for_each(temp, &this->work_request_head) {
@@ -348,7 +348,7 @@ static int waiting_is_ready(struct fimc_is_interface *interface)
 		cfg = readl(interface->regs + INTMSR0);
 		status = INTMSR0_GET_INTMSD0(cfg);
 		udelay(100);
-		printk(KERN_WARNING "Retry to read INTMSR0(%d)", try_count);
+		pr_warn("Retry to read INTMSR0(%d)", try_count);
 
 		if (--try_count == 0) {
 			err("INTMSR0's 0 bit is not cleared.");
@@ -372,6 +372,8 @@ static int fimc_is_set_cmd(struct fimc_is_interface *itf,
 	int ret = 0;
 	int wait_lock = 0;
 	u32 lock_pid = 0;
+	u32 id;
+	volatile struct is_common_reg __iomem *com_regs;
 
 	BUG_ON(!itf);
 	BUG_ON(!msg);
@@ -385,9 +387,9 @@ static int fimc_is_set_cmd(struct fimc_is_interface *itf,
 
 	lock_pid = atomic_read(&itf->lock_pid);
 	if (lock_pid && (lock_pid != current->pid)) {
-		pr_info("itf LOCK, %d(%d) wait\n", current->pid, msg->command);
+		pr_warn("itf LOCK, %d(%d) wait\n", current->pid, msg->command);
 		wait_lock = wait_lockstate(itf);
-		pr_info("itf UNLOCK, %d(%d) go\n", current->pid, msg->command);
+		pr_warn("itf UNLOCK, %d(%d) go\n", current->pid, msg->command);
 		if (wait_lock) {
 			err("wait_lockstate is fail, lock reset");
 			atomic_set(&itf->lock_pid, 0);
@@ -441,13 +443,14 @@ static int fimc_is_set_cmd(struct fimc_is_interface *itf,
 	}
 
 	set_busystate(itf, msg->command);
-	itf->com_regs->hicmd = msg->command;
-	itf->com_regs->hic_sensorid =
-		((msg->group<<GROUP_ID_SHIFT) | msg->instance);
-	itf->com_regs->hic_param1 = msg->parameter1;
-	itf->com_regs->hic_param2 = msg->parameter2;
-	itf->com_regs->hic_param3 = msg->parameter3;
-	itf->com_regs->hic_param4 = msg->parameter4;
+	com_regs = itf->com_regs;
+	id = (msg->group << GROUP_ID_SHIFT) | msg->instance;
+	writel(msg->command, &com_regs->hicmd);
+	writel(id, &com_regs->hic_sensorid);
+	writel(msg->parameter1, &com_regs->hic_param1);
+	writel(msg->parameter2, &com_regs->hic_param2);
+	writel(msg->parameter3, &com_regs->hic_param3);
+	writel(msg->parameter4, &com_regs->hic_param4);
 	send_interrupt(itf);
 
 	exit_process_barrier(itf);
@@ -516,6 +519,8 @@ static int fimc_is_set_cmd_shot(struct fimc_is_interface *this,
 	struct fimc_is_msg *msg)
 {
 	int ret = 0;
+	u32 id;
+	volatile struct is_common_reg __iomem *com_regs;
 
 	BUG_ON(!this);
 	BUG_ON(!msg);
@@ -540,13 +545,14 @@ static int fimc_is_set_cmd_shot(struct fimc_is_interface *this,
 	atomic_set(&this->shot_check[msg->instance], 1);
 	spin_unlock_irq(&this->shot_check_lock);
 
-	this->com_regs->hicmd = msg->command;
-	this->com_regs->hic_sensorid =
-		((msg->group<<GROUP_ID_SHIFT) | msg->instance);
-	this->com_regs->hic_param1 = msg->parameter1;
-	this->com_regs->hic_param2 = msg->parameter2;
-	this->com_regs->hic_param3 = msg->parameter3;
-	this->com_regs->hic_param4 = msg->parameter4;
+	com_regs = this->com_regs;
+	id = (msg->group << GROUP_ID_SHIFT) | msg->instance;
+	writel(msg->command, &com_regs->hicmd);
+	writel(id, &com_regs->hic_sensorid);
+	writel(msg->parameter1, &com_regs->hic_param1);
+	writel(msg->parameter2, &com_regs->hic_param2);
+	writel(msg->parameter3, &com_regs->hic_param3);
+	writel(msg->parameter4, &com_regs->hic_param4);
 	send_interrupt(this);
 
 	exit_process_barrier(this);
@@ -559,7 +565,9 @@ static int fimc_is_set_cmd_nblk(struct fimc_is_interface *this,
 	struct fimc_is_work *work)
 {
 	int ret = 0;
+	u32 id;
 	struct fimc_is_msg *msg;
+	volatile struct is_common_reg __iomem *com_regs;
 
 	msg = &work->msg;
 	switch (msg->command) {
@@ -580,12 +588,14 @@ static int fimc_is_set_cmd_nblk(struct fimc_is_interface *this,
 		goto exit;
 	}
 
-	this->com_regs->hicmd = msg->command;
-	this->com_regs->hic_sensorid = msg->instance;
-	this->com_regs->hic_param1 = msg->parameter1;
-	this->com_regs->hic_param2 = msg->parameter2;
-	this->com_regs->hic_param3 = msg->parameter3;
-	this->com_regs->hic_param4 = msg->parameter4;
+	com_regs = this->com_regs;
+	id = (msg->group << GROUP_ID_SHIFT) | msg->instance;
+	writel(msg->command, &com_regs->hicmd);
+	writel(id, &com_regs->hic_sensorid);
+	writel(msg->parameter1, &com_regs->hic_param1);
+	writel(msg->parameter2, &com_regs->hic_param2);
+	writel(msg->parameter3, &com_regs->hic_param3);
+	writel(msg->parameter4, &com_regs->hic_param4);
 	send_interrupt(this);
 
 exit:
@@ -596,50 +606,50 @@ exit:
 static inline void fimc_is_get_cmd(struct fimc_is_interface *itf,
 	struct fimc_is_msg *msg, u32 index)
 {
-	struct is_common_reg __iomem *com_regs = itf->com_regs;
+	volatile struct is_common_reg __iomem *com_regs = itf->com_regs;
 
 	switch (index) {
 	case INTR_GENERAL:
 		msg->id = 0;
-		msg->command = com_regs->ihcmd;
-		msg->instance = com_regs->ihc_sensorid;
-		msg->parameter1 = com_regs->ihc_param1;
-		msg->parameter2 = com_regs->ihc_param2;
-		msg->parameter3 = com_regs->ihc_param3;
-		msg->parameter4 = com_regs->ihc_param4;
+		msg->command = readl(&com_regs->ihcmd);
+		msg->instance = readl(&com_regs->ihc_sensorid);
+		msg->parameter1 = readl(&com_regs->ihc_param1);
+		msg->parameter2 = readl(&com_regs->ihc_param2);
+		msg->parameter3 = readl(&com_regs->ihc_param3);
+		msg->parameter4 = readl(&com_regs->ihc_param4);
 		break;
 	case INTR_SCC_FDONE:
 		msg->id = 0;
 		msg->command = IHC_FRAME_DONE;
-		msg->instance = com_regs->scc_sensor_id;
-		msg->parameter1 = com_regs->scc_param1;
-		msg->parameter2 = com_regs->scc_param2;
-		msg->parameter3 = com_regs->scc_param3;
+		msg->instance = readl(&com_regs->scc_sensor_id);
+		msg->parameter1 = readl(&com_regs->scc_param1);
+		msg->parameter2 = readl(&com_regs->scc_param2);
+		msg->parameter3 = readl(&com_regs->scc_param3);
 		msg->parameter4 = 0;
 		break;
 	case INTR_DIS_FDONE:
 		msg->id = 0;
 		msg->command = IHC_FRAME_DONE;
-		msg->instance = com_regs->dis_sensor_id;
-		msg->parameter1 = com_regs->dis_param1;
-		msg->parameter2 = com_regs->dis_param2;
-		msg->parameter3 = com_regs->dis_param3;
+		msg->instance = readl(&com_regs->dis_sensor_id);
+		msg->parameter1 = readl(&com_regs->dis_param1);
+		msg->parameter2 = readl(&com_regs->dis_param2);
+		msg->parameter3 = readl(&com_regs->dis_param3);
 		msg->parameter4 = 0;
 		break;
 	case INTR_SCP_FDONE:
 		msg->id = 0;
 		msg->command = IHC_FRAME_DONE;
-		msg->instance = com_regs->scp_sensor_id;
-		msg->parameter1 = com_regs->scp_param1;
-		msg->parameter2 = com_regs->scp_param2;
-		msg->parameter3 = com_regs->scp_param3;
+		msg->instance = readl(&com_regs->scp_sensor_id);
+		msg->parameter1 = readl(&com_regs->scp_param1);
+		msg->parameter2 = readl(&com_regs->scp_param2);
+		msg->parameter3 = readl(&com_regs->scp_param3);
 		msg->parameter4 = 0;
 		break;
 	case INTR_META_DONE:
 		msg->id = 0;
 		msg->command = IHC_FRAME_DONE;
-		msg->instance = com_regs->meta_sensor_id;
-		msg->parameter1 = com_regs->meta_param1;
+		msg->instance = readl(&com_regs->meta_sensor_id);
+		msg->parameter1 = readl(&com_regs->meta_param1);
 		msg->parameter2 = 0;
 		msg->parameter3 = 0;
 		msg->parameter4 = 0;
@@ -647,14 +657,11 @@ static inline void fimc_is_get_cmd(struct fimc_is_interface *itf,
 	case INTR_SHOT_DONE:
 		msg->id = 0;
 		msg->command = IHC_FRAME_DONE;
-		msg->instance = com_regs->shot_sensor_id;
-		msg->parameter1 = com_regs->shot_param1;
-		msg->parameter2 = com_regs->shot_param2;
-		msg->parameter3 = com_regs->shot_param3;
+		msg->instance = readl(&com_regs->shot_sensor_id);
+		msg->parameter1 = readl(&com_regs->shot_param1);
+		msg->parameter2 = readl(&com_regs->shot_param2);
+		msg->parameter3 = readl(&com_regs->shot_param3);
 		msg->parameter4 = 0;
-
-		/* debugging for lost shot done */
-		com_regs->shot_param1 = 0;
 		break;
 	default:
 		msg->id = 0;
@@ -675,14 +682,15 @@ static inline void fimc_is_get_cmd(struct fimc_is_interface *itf,
 static inline u32 fimc_is_get_intr(struct fimc_is_interface *itf)
 {
 	u32 status;
-	struct is_common_reg __iomem *com_regs = itf->com_regs;
+	volatile struct is_common_reg __iomem *com_regs = itf->com_regs;
 
-	status = readl(itf->regs + INTMSR1) | com_regs->ihcmd_iflag |
-		com_regs->scc_iflag |
-		com_regs->dis_iflag |
-		com_regs->scp_iflag |
-		com_regs->meta_iflag |
-		com_regs->shot_iflag;
+	status = readl(itf->regs + INTMSR1) |
+		readl(&com_regs->ihcmd_iflag) |
+		readl(&com_regs->scc_iflag) |
+		readl(&com_regs->dis_iflag) |
+		readl(&com_regs->scp_iflag) |
+		readl(&com_regs->meta_iflag) |
+		readl(&com_regs->shot_iflag);
 
 	return status;
 }
@@ -690,32 +698,32 @@ static inline u32 fimc_is_get_intr(struct fimc_is_interface *itf)
 static inline void fimc_is_clr_intr(struct fimc_is_interface *itf,
 	u32 index)
 {
-	struct is_common_reg __iomem *com_regs = itf->com_regs;
+	volatile struct is_common_reg __iomem *com_regs = itf->com_regs;
 
 	switch (index) {
 	case INTR_GENERAL:
 		writel((1<<INTR_GENERAL), itf->regs + INTCR1);
-		com_regs->ihcmd_iflag = 0;
+		writel(0, &com_regs->ihcmd_iflag);
 		break;
 	case INTR_SCC_FDONE:
 		writel((1<<INTR_SCC_FDONE), itf->regs + INTCR1);
-		com_regs->scc_iflag = 0;
+		writel(0, &com_regs->scc_iflag);
 		break;
 	case INTR_DIS_FDONE:
 		writel((1<<INTR_DIS_FDONE), itf->regs + INTCR1);
-		com_regs->dis_iflag = 0;
+		writel(0, &com_regs->dis_iflag);
 		break;
 	case INTR_SCP_FDONE:
 		writel((1<<INTR_SCP_FDONE), itf->regs + INTCR1);
-		com_regs->scp_iflag = 0;
+		writel(0, &com_regs->scp_iflag);
 		break;
 	case INTR_META_DONE:
 		writel((1<<INTR_META_DONE), itf->regs + INTCR1);
-		com_regs->meta_iflag = 0;
+		writel(0, &com_regs->meta_iflag);
 		break;
 	case INTR_SHOT_DONE:
 		writel((1<<INTR_SHOT_DONE), itf->regs + INTCR1);
-		com_regs->shot_iflag = 0;
+		writel(0, &com_regs->shot_iflag);
 		break;
 	default:
 		err("unknown command clear\n");
@@ -738,7 +746,7 @@ static void wq_func_general(struct work_struct *data)
 		msg = &work->msg;
 		switch (msg->command) {
 		case IHC_GET_SENSOR_NUMBER:
-			printk(KERN_INFO "IS version: %d.%d [0x%02x]\n",
+			pr_err("IS version: %d.%d [0x%02x]\n",
 				ISDRV_VERSION, msg->parameter1,
 				get_drv_clock_gate() |
 				get_drv_dvfs());
@@ -767,8 +775,14 @@ static void wq_func_general(struct work_struct *data)
 					sizeof(struct fimc_is_msg));
 				testnclr_wakeup(itf, msg->parameter1);
 				break;
-			case HIC_SET_A5_MEM_ACCESS:
-				dbg_interface("cfgmem done\n");
+			case HIC_SET_A5_MAP:
+				dbg_interface("mapping done\n");
+				memcpy(&itf->reply, msg,
+					sizeof(struct fimc_is_msg));
+				testnclr_wakeup(itf, msg->parameter1);
+				break;
+			case HIC_SET_A5_UNMAP:
+				dbg_interface("unmapping done\n");
 				memcpy(&itf->reply, msg,
 					sizeof(struct fimc_is_msg));
 				testnclr_wakeup(itf, msg->parameter1);
@@ -993,7 +1007,7 @@ static void wq_func_subdev(struct fimc_is_subdev *leader,
 		}
 
 		if (status) {
-			pr_info("[%c:D:%d] Frame%d NDone(%d)\n", name,
+			pr_err("[%c:D:%d] FRM%d NOT DONE(%d)\n", name,
 				instance, fcount, status);
 			sub_frame->stream->fvalid = 0;
 			goto done;
@@ -1168,7 +1182,7 @@ static void wq_func_group_3a0(struct fimc_is_groupmgr *groupmgr,
 	BUG_ON(!sub_framemgr);
 
 	if (status != ISR_DONE) {
-		pr_info("[3A0:D:%d] GRP0 NOT DONE(%d, %d)\n", group->instance,
+		pr_err("[3A0:D:%d] GRP0 NOT DONE(%d, %d)\n", group->instance,
 			ldr_frame->fcount, ldr_frame->index);
 		ldr_frame->shot_ext->request_3ax = 0;
 		/* HACK : VB2_BUF_STATE_ERROR */
@@ -1229,7 +1243,7 @@ static void wq_func_group_3a1(struct fimc_is_groupmgr *groupmgr,
 	BUG_ON(!sub_framemgr);
 
 	if (status != ISR_DONE) {
-		pr_info("[3A1:D:%d] GRP1 NOT DONE(%d, %d)\n", group->instance,
+		pr_err("[3A1:D:%d] GRP1 NOT DONE(%d, %d)\n", group->instance,
 			ldr_frame->fcount, ldr_frame->index);
 		ldr_frame->shot_ext->request_3ax = 0;
 		/* HACK : VB2_BUF_STATE_ERROR */
@@ -1293,7 +1307,7 @@ static void wq_func_group_isp(struct fimc_is_groupmgr *groupmgr,
 	BUG_ON(!frame);
 
 	if (status != ISR_DONE) {
-		pr_info("[ISP:D:%d] GRP2 NOT DONE(%d, %d)\n", group->instance,
+		pr_err("[ISP:D:%d] GRP2 NOT DONE(%d, %d)\n", group->instance,
 			frame->fcount, frame->index);
 		frame->shot_ext->request_isp = 0;
 		/* HACK : VB2_BUF_STATE_ERROR */
@@ -1375,7 +1389,7 @@ static void wq_func_group_dis(struct fimc_is_groupmgr *groupmgr,
 	BUG_ON(!frame);
 
 	if (status != ISR_DONE) {
-		pr_info("[DIS:D:%d] GRP3 NOT DONE(%d, %d)\n", group->instance,
+		pr_err("[DIS:D:%d] GRP3 NOT DONE(%d, %d)\n", group->instance,
 			frame->fcount, frame->index);
 		/* HACK : VB2_BUF_STATE_ERROR */
 		done_state = VB2_BUF_STATE_DONE;
@@ -1640,6 +1654,7 @@ static void interface_timer(unsigned long data)
 	struct fimc_is_interface *itf = (struct fimc_is_interface *)data;
 	struct fimc_is_core *core;
 	struct fimc_is_device_ischain *device;
+	struct fimc_is_device_sensor *sensor;
 	struct fimc_is_framemgr *framemgr;
 	struct fimc_is_work_list *work_list;
 	struct work_struct *work_wq;
@@ -1659,6 +1674,13 @@ static void interface_timer(unsigned long data)
 		shot_count = 0;
 		scount_3ax = 0;
 		scount_isp = 0;
+
+		sensor = device->sensor;
+		if (!sensor)
+			break;
+
+		if (!test_bit(FIMC_IS_SENSOR_FRONT_START, &sensor->state))
+			break;
 
 		if (test_bit(FIMC_IS_ISCHAIN_OPEN_SENSOR, &device->state)) {
 			spin_lock_irq(&itf->shot_check_lock);
@@ -1696,7 +1718,7 @@ static void interface_timer(unsigned long data)
 
 		if (shot_count) {
 			atomic_inc(&itf->shot_timeout[i]);
-			pr_info ("timer[%d] is increase to %d\n", i,
+			pr_err ("timer[%d] is increase to %d\n", i,
 				atomic_read(&itf->shot_timeout[i]));
 		}
 
@@ -1705,45 +1727,48 @@ static void interface_timer(unsigned long data)
 				atomic_read(&itf->shot_timeout[i]),
 				shot_count, scount_3ax, scount_isp);
 
-			pr_info("\n### 3ax framemgr info ###\n");
+			pr_err("\n### 3ax framemgr info ###\n");
 			if (scount_3ax) {
 				framemgr = GET_GROUP_FRAMEMGR(&device->group_3ax);
 				fimc_is_frame_print_all(framemgr);
 			}
 
-			pr_info("\n### isp framemgr info ###\n");
+			pr_err("\n### isp framemgr info ###\n");
 			if (scount_isp) {
 				framemgr = GET_GROUP_FRAMEMGR(&device->group_isp);
 				fimc_is_frame_print_all(framemgr);
 			}
 
-			pr_info("\n### work list info ###\n");
+			pr_err("\n### work list info ###\n");
 			work_list = &itf->work_list[INTR_SHOT_DONE];
 			print_fre_work_list(work_list);
 			print_req_work_list(work_list);
 
 			if (work_list->work_request_cnt > 0) {
-				pr_info("\n### processing work lately ###\n");
+				pr_err("\n### processing work lately ###\n");
 				work_wq = &itf->work_wq[INTR_SHOT_DONE];
-				wq_func_schedule(itf, work_wq);
-				flush_work_sync(work_wq);
-				if (work_list->work_request_cnt > 0) {
-					pr_info("\n### force work ###\n");
-					wq_func_shot(work_wq);
-				}
+				wq_func_shot(work_wq);
 
 				atomic_set(&itf->shot_check[i], 0);
 				atomic_set(&itf->shot_timeout[i], 0);
 			} else {
-				pr_info("\n### firmware messsage dump ###\n");
+				pr_err("\n### firmware messsage dump ###\n");
 				fimc_is_hw_print(itf);
 
-				pr_info("\n### MCUCTL dump ###\n");
+				pr_err("\n### MCUCTL dump ###\n");
 				regs = (unsigned long)itf->com_regs;
 				for (j = 0; j < 64; ++j)
-					pr_info("MCTL[%d] : %08X\n", j, readl(regs + 4*j));
+					pr_err("MCTL[%d] : %08X\n", j, readl(regs + 4*j));
+
+				if (readl(&itf->com_regs->shot_iflag)) {
+					pr_err("\n### MCUCTL check ###\n");
+					fimc_is_clr_intr(itf, INTR_SHOT_DONE);
+
+					for (j = 0; j < 64; ++j)
+						pr_err("MCTL[%d] : %08X\n", j, readl(regs + 4*j));
+				}
 #ifdef BUG_ON_ENABLE
-				BUG_ON(1);
+				BUG();
 #endif
 				return;
 			}
@@ -1918,12 +1943,12 @@ int fimc_is_interface_probe(struct fimc_is_interface *this,
 	this->com_regs = (struct is_common_reg *)(regs + ISSR0);
 
 	/* common register init */
-	this->com_regs->ihcmd_iflag = 0;
-	this->com_regs->scc_iflag = 0;
-	this->com_regs->dis_iflag = 0;
-	this->com_regs->scp_iflag = 0;
-	this->com_regs->meta_iflag = 0;
-	this->com_regs->shot_iflag = 0;
+	writel(0, &this->com_regs->ihcmd_iflag);
+	writel(0, &this->com_regs->scc_iflag);
+	writel(0, &this->com_regs->dis_iflag);
+	writel(0, &this->com_regs->scp_iflag);
+	writel(0, &this->com_regs->meta_iflag);
+	writel(0, &this->com_regs->shot_iflag);
 
 	ret = request_irq(irq, interface_isr, 0, "mcuctl", this);
 	if (ret)
@@ -2041,9 +2066,10 @@ void fimc_is_interface_unlock(struct fimc_is_interface *this)
 extern unsigned int g_cam_err_count;
 int fimc_is_hw_print(struct fimc_is_interface *this)
 {
-	int debug_cnt;
+	int debug_cnt, sentence_i;
 	char *debug;
 	char letter;
+	char sentence[250];
 	int count = 0, i;
 	struct fimc_is_core *core;
 
@@ -2053,6 +2079,7 @@ int fimc_is_hw_print(struct fimc_is_interface *this)
 	}
 
 	core = (struct fimc_is_core *)this->core;
+	sentence_i = 0;
 
 	vb2_ion_sync_for_device(core->minfo.fw_cookie,
 		DEBUG_OFFSET, DEBUG_CNT, DMA_FROM_DEVICE);
@@ -2067,17 +2094,30 @@ int fimc_is_hw_print(struct fimc_is_interface *this)
 		count = debug_cnt - core->debug_cnt;
 
 	if (count) {
-		printk(KERN_INFO "start(%d %d)\n", debug_cnt, count);
+		printk(KERN_ERR "start(%d %d)\n", debug_cnt, count);
 		for (i = core->debug_cnt; count > 0; count--) {
 			letter = debug[i];
-			if (letter)
-				printk(KERN_CONT "%c", letter);
+			if (letter) {
+				sentence[sentence_i] = letter;
+				if (sentence_i >= 247) {
+					sentence[sentence_i + 1] = '\n';
+					sentence[sentence_i + 2] = 0;
+					printk(KERN_ERR "%s", sentence);
+					sentence_i = 0;
+				} else if (letter == '\n') {
+					sentence[sentence_i + 1] = 0;
+					printk(KERN_ERR "%s", sentence);
+					sentence_i = 0;
+				} else {
+					sentence_i++;
+				}
+			}
 			i++;
 			if (i > DEBUG_CNT)
 				i = 0;
 		}
 		core->debug_cnt = debug_cnt;
-		printk(KERN_INFO "end\n");
+		printk(KERN_ERR "end\n");
 	}
 
 	g_cam_err_count++;
@@ -2089,6 +2129,7 @@ int fimc_is_hw_enum(struct fimc_is_interface *this)
 {
 	int ret = 0;
 	struct fimc_is_msg msg;
+	volatile struct is_common_reg __iomem *com_regs;
 
 	dbg_interface("enum()\n");
 
@@ -2113,12 +2154,13 @@ int fimc_is_hw_enum(struct fimc_is_interface *this)
 	msg.parameter4 = 0;
 
 	waiting_is_ready(this);
-	this->com_regs->hicmd = msg.command;
-	this->com_regs->hic_sensorid = msg.instance;
-	this->com_regs->hic_param1 = msg.parameter1;
-	this->com_regs->hic_param2 = msg.parameter2;
-	this->com_regs->hic_param3 = msg.parameter3;
-	this->com_regs->hic_param4 = msg.parameter4;
+	com_regs = this->com_regs;
+	writel(msg.command, &com_regs->hicmd);
+	writel(msg.instance, &com_regs->hic_sensorid);
+	writel(msg.parameter1, &com_regs->hic_param1);
+	writel(msg.parameter2, &com_regs->hic_param2);
+	writel(msg.parameter3, &com_regs->hic_param3);
+	writel(msg.parameter4, &com_regs->hic_param4);
 	send_interrupt(this);
 
 exit:
@@ -2376,20 +2418,42 @@ int fimc_is_hw_g_capability(struct fimc_is_interface *this,
 	return ret;
 }
 
-int fimc_is_hw_cfg_mem(struct fimc_is_interface *this,
-	u32 instance, u32 address, u32 size)
+int fimc_is_hw_map(struct fimc_is_interface *this,
+	u32 instance, u32 group, u32 address, u32 size)
 {
 	int ret;
 	struct fimc_is_msg msg, reply;
 
-	dbg_interface("cfg_mem(%d, 0x%08X)\n", instance, address);
+	dbg_interface("[%d][%d] map(%08X, %X)\n", instance, group, address, size);
 
 	msg.id = 0;
-	msg.command = HIC_SET_A5_MEM_ACCESS;
+	msg.command = HIC_SET_A5_MAP;
 	msg.instance = instance;
-	msg.group = 0;
+	msg.group = group;
 	msg.parameter1 = address;
 	msg.parameter2 = size;
+	msg.parameter3 = 0;
+	msg.parameter4 = 0;
+
+	ret = fimc_is_set_cmd(this, &msg, &reply);
+
+	return ret;
+}
+
+int fimc_is_hw_unmap(struct fimc_is_interface *this,
+	u32 instance, u32 group)
+{
+	int ret;
+	struct fimc_is_msg msg, reply;
+
+	dbg_interface("[%d][%d] unmap\n", instance, group);
+
+	msg.id = 0;
+	msg.command = HIC_SET_A5_UNMAP;
+	msg.instance = instance;
+	msg.group = group;
+	msg.parameter1 = 0;
+	msg.parameter2 = 0;
 	msg.parameter3 = 0;
 	msg.parameter4 = 0;
 

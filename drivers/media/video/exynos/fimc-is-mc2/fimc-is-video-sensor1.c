@@ -334,8 +334,32 @@ static int fimc_is_ss1_video_qbuf(struct file *file, void *priv,
 
 #ifdef USE_FOR_DTP
 void fimc_is_ss1_video_force_dqbuf(unsigned long data) {
-	struct vb2_queue *vbq = (struct vb2_queue *)data;
+	struct fimc_is_video_ctx *vctx;
+	struct fimc_is_device_sensor *device;
+	struct fimc_is_device_ischain *ischain;
+	struct vb2_queue *vbq;
 	int i;
+
+	err("DTP is detected, forcely reset");
+
+	vctx = (struct fimc_is_video_ctx *)data;
+	vbq = vctx->q_dst.vbq;
+	device = vctx->device;
+	if (!device) {
+		err("device is NULL");
+		return;
+	}
+
+	ischain = device->ischain;
+	if (!ischain) {
+		err("ischain is NULL");
+		return;
+	}
+
+	set_bit(FIMC_IS_SENSOR_BACK_NOWAIT_STOP, &device->state);
+	set_bit(FIMC_IS_GROUP_FORCE_STOP, &ischain->group_3ax.state);
+	set_bit(FIMC_IS_GROUP_FORCE_STOP, &ischain->group_isp.state);
+	up(&ischain->group_3ax.smp_trigger);
 
 	for(i=0; i<VIDEO_MAX_FRAME; i++) {
 		if (vbq->bufs[i] &&
@@ -359,8 +383,8 @@ static int fimc_is_ss1_video_dqbuf(struct file *file, void *priv,
 	static struct timer_list        timer;
 
 	if (!first_act) {
-		setup_timer(&timer, fimc_is_ss1_video_force_dqbuf, (unsigned long)vctx->q_dst.vbq);
-		mod_timer(&timer, jiffies +  msecs_to_jiffies(4000));
+		setup_timer(&timer, fimc_is_ss1_video_force_dqbuf, (unsigned long)vctx);
+		mod_timer(&timer, jiffies +  msecs_to_jiffies(3000));
 	}
 #endif
 
@@ -567,8 +591,10 @@ static int fimc_is_ss1_video_s_parm(struct file *file, void *priv,
 	/* HACK : dual max fps(24fps) check */
 	if (test_bit(FIMC_IS_SENSOR_OPEN, &core->sensor[0].state) &&
 		test_bit(FIMC_IS_SENSOR_OPEN, &core->sensor[1].state) &&
-		(framerate > 24))
-	err("framerate is invalid(%d > 24) and force 24fps", framerate);
+		(framerate > 24)) {
+		err("framerate is invalid(%d > 24) and force 24fps", framerate);
+		framerate = 24;
+	}
 
 	sensor->framerate = framerate;
 

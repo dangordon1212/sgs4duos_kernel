@@ -103,6 +103,15 @@
 #define SYN_I2C_RETRY_TIMES 3
 #define MAX_F11_TOUCH_WIDTH 15
 
+#define CHECK_STATUS_TIMEOUT_MS 200
+#define STATUS_NO_ERROR 0x00
+#define STATUS_RESET_OCCURRED 0x01
+#define STATUS_INVALID_CONFIG 0x02
+#define STATUS_DEVICE_FAILURE 0x03
+#define STATUS_CONFIG_CRC_FAILURE 0x04
+#define STATUS_FIRMWARE_CRC_FAILURE 0x05
+#define STATUS_CRC_IN_PROGRESS 0x06
+
 #define F01_STD_QUERY_LEN 21
 #define F01_BUID_ID_OFFSET 18
 #define F11_STD_QUERY_LEN 9
@@ -914,14 +923,12 @@ static int synaptics_rmi4_set_page(struct synaptics_rmi4_data *rmi4_data,
 		for (retry = 0; retry < SYN_I2C_RETRY_TIMES; retry++) {
 			retval = i2c_master_send(i2c, buf, PAGE_SELECT_LEN);
 			if (retval != PAGE_SELECT_LEN) {
-				if((rmi4_data->tsp_probe != true)&&(retry>=1)){
-					dev_err(&i2c->dev,
-							"%s: TSP needs to reboot \n",__func__);
+				if ((rmi4_data->tsp_probe != true) && (retry >= 1)) {
+					dev_err(&i2c->dev, "%s: TSP needs to reboot \n", __func__);
 					retval = TSP_NEEDTO_REBOOT;
 					return retval;
 				}
-				dev_err(&i2c->dev,
-						"%s: I2C retry = %d, i2c_master_send retval = %d\n",
+				dev_err(&i2c->dev, "%s: I2C retry = %d, i2c_master_send retval = %d\n",
 						__func__, retry + 1, retval);
 				if (retval == 0)
 					retval = -EAGAIN;
@@ -1609,6 +1616,7 @@ static void synaptics_rmi4_f51_report(struct synaptics_rmi4_data *rmi4_data,
 				__func__, x, y, z);
 
 		rmi4_data->f51_finger = true;
+		rmi4_data->fingers_on_2d = false;
 		synaptics_rmi4_f51_finger_timer((unsigned long)rmi4_data);
 	}
 
@@ -2139,17 +2147,17 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 			rmi4_data->sensor_max_y);
 
 	if (!rmi4_data->board->num_of_rx && !rmi4_data->board->num_of_tx) {
-	rmi4_data->num_of_rx = ctrl_8.num_of_rx;
-	rmi4_data->num_of_tx = ctrl_8.num_of_tx;
-	rmi4_data->max_touch_width = max(rmi4_data->num_of_rx,
-			rmi4_data->num_of_tx);
-	rmi4_data->num_of_node = ctrl_8.num_of_rx * ctrl_8.num_of_tx;
+		rmi4_data->num_of_rx = ctrl_8.num_of_rx;
+		rmi4_data->num_of_tx = ctrl_8.num_of_tx;
+		rmi4_data->max_touch_width = max(rmi4_data->num_of_rx,
+				rmi4_data->num_of_tx);
+		rmi4_data->num_of_node = ctrl_8.num_of_rx * ctrl_8.num_of_tx;
 	} else {
-	rmi4_data->num_of_rx = rmi4_data->board->num_of_rx;
-	rmi4_data->num_of_tx = rmi4_data->board->num_of_tx;
-	rmi4_data->max_touch_width = max(rmi4_data->num_of_rx,
-			rmi4_data->num_of_tx);
-	rmi4_data->num_of_node = rmi4_data->num_of_rx * rmi4_data->num_of_tx;
+		rmi4_data->num_of_rx = rmi4_data->board->num_of_rx;
+		rmi4_data->num_of_tx = rmi4_data->board->num_of_tx;
+		rmi4_data->max_touch_width = max(rmi4_data->num_of_rx,
+				rmi4_data->num_of_tx);
+		rmi4_data->num_of_node = rmi4_data->num_of_rx * rmi4_data->num_of_tx;
 	}
 
 	retval = synaptics_rmi4_i2c_read(rmi4_data,
@@ -2631,6 +2639,61 @@ int synaptics_rmi4_proximity_enables(unsigned char enables)
 EXPORT_SYMBOL(synaptics_rmi4_proximity_enables);
 #endif
 
+static int synaptics_rmi4_check_status(struct synaptics_rmi4_data *rmi4_data)
+{
+	int retval;
+	int timeout = CHECK_STATUS_TIMEOUT_MS;
+	unsigned char data;
+	struct synaptics_rmi4_f01_device_status status;
+
+	retval = synaptics_rmi4_i2c_read(rmi4_data,
+			rmi4_data->f01_data_base_addr,
+			status.data,
+			sizeof(status.data));
+	if (retval < 0)
+		return retval;
+
+	dev_info(&rmi4_data->i2c_client->dev, "%s: Device status[0x%02x] status.code[%d]\n",
+			__func__, status.data[0], status.status_code);
+
+	while (status.status_code == STATUS_CRC_IN_PROGRESS) {
+		if (timeout > 0)
+			msleep(20);
+		else
+			return -1;
+
+		retval = synaptics_rmi4_i2c_read(rmi4_data,
+				rmi4_data->f01_data_base_addr,
+				status.data,
+				sizeof(status.data));
+		if (retval < 0)
+			return retval;
+
+		timeout -= 20;
+	}
+
+	if (status.flash_prog == 1) {
+		rmi4_data->flash_prog_mode = true;
+		dev_info(&rmi4_data->i2c_client->dev, "%s: In flash prog mode, status = 0x%02x\n",
+				__func__, status.status_code);
+	} else {
+		rmi4_data->flash_prog_mode = false;
+	}
+
+	retval = synaptics_rmi4_i2c_read(rmi4_data,
+			rmi4_data->f01_data_base_addr,
+			&data,
+			sizeof(data));
+	if (retval < 0) {
+		dev_err(&rmi4_data->i2c_client->dev,
+				"%s: Failed to read interrupt status\n",
+				__func__);
+		return retval;
+	}
+
+	return 0;
+}
+
 static void synaptics_rmi4_set_configured(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -2756,22 +2819,17 @@ static int synaptics_rmi4_query_device(struct synaptics_rmi4_data *rmi4_data)
 				rmi4_data->f01_cmd_base_addr =
 						rmi_fd.cmd_base_addr;
 
-				retval = synaptics_rmi4_i2c_read(rmi4_data,
-						rmi4_data->f01_data_base_addr,
-						status.data,
-						sizeof(status.data));
-				if (retval < 0)
+				retval = synaptics_rmi4_check_status(rmi4_data);
+				if (retval < 0) {
+					dev_err(&rmi4_data->i2c_client->dev,
+							"%s: Failed to check status\n",
+							__func__);
 					return retval;
-
-				if (status.flash_prog == 1) {
-					rmi4_data->flash_prog_mode = true;
-						dev_info(&rmi4_data->i2c_client->dev, "%s: In flash prog mode, status = 0x%02x\n",
-							__func__,
-							status.status_code);
-					goto flash_prog_mode;
-				} else {
-					rmi4_data->flash_prog_mode = false;
 				}
+
+				if (rmi4_data->flash_prog_mode)
+					goto flash_prog_mode;
+
 				break;
 			case SYNAPTICS_RMI4_F11:
 				if (rmi_fd.intr_src_count == 0)
@@ -3264,6 +3322,11 @@ static void synaptics_rmi4_release_all_finger(
 #endif
 	input_sync(rmi4_data->input_dev);
 
+	rmi4_data->fingers_on_2d = false;
+#ifdef PROXIMITY
+	rmi4_data->f51_finger = false;
+#endif
+
 #ifdef TSP_BOOSTER
 	synaptics_set_dvfs_lock(rmi4_data, 2, false);
 #endif
@@ -3563,35 +3626,33 @@ err_tsp_reboot:
 
 	retval = synaptics_rmi4_set_input_device(rmi4_data);
 	if (retval < 0) {
-		dev_err(&client->dev,
-				"%s: Failed to set up input device\n",
+		dev_err(&client->dev, "%s: Failed to set up input device\n",
 				__func__);
 
-		if((retval == TSP_NEEDTO_REBOOT)&&(rmi4_data->rebootcount< MAX_TSP_REBOOT)){
+		if ((retval == TSP_NEEDTO_REBOOT)
+				&& (rmi4_data->rebootcount < MAX_TSP_REBOOT)) {
 			platform_data->power(false);
 			msleep(SYNAPTICS_POWER_MARGIN_TIME);
 			msleep(SYNAPTICS_POWER_MARGIN_TIME);
 			rmi4_data->rebootcount++;
-			dev_err(&client->dev,
-					"%s: reboot sequence by i2c fail\n",
+			dev_err(&client->dev, "%s: reboot sequence by i2c fail\n",
 					__func__);
 			goto err_tsp_reboot;
+		} else {
+			goto err_set_input_device;
 		}
-		else goto err_set_input_device;
 	}
 
 	retval = synaptics_rmi4_init_exp_fn(rmi4_data);
 	if (retval < 0) {
-		dev_err(&client->dev,
-				"%s: Failed to register rmidev module\n",
+		dev_err(&client->dev, "%s: Failed to register rmidev module\n",
 				__func__);
 		goto err_init_exp_fn;
 	}
 
 	retval = synaptics_rmi4_irq_enable(rmi4_data, true);
 	if (retval < 0) {
-		dev_err(&client->dev,
-				"%s: Failed to enable attention interrupt\n",
+		dev_err(&client->dev, "%s: Failed to enable attention interrupt\n",
 				__func__);
 		goto err_enable_irq;
 	}
@@ -3600,8 +3661,7 @@ err_tsp_reboot:
 		retval = sysfs_create_file(&rmi4_data->input_dev->dev.kobj,
 				&attrs[attr_count].attr);
 		if (retval < 0) {
-			dev_err(&client->dev,
-					"%s: Failed to create sysfs attributes\n",
+			dev_err(&client->dev, "%s: Failed to create sysfs attributes\n",
 					__func__);
 			goto err_sysfs;
 		}

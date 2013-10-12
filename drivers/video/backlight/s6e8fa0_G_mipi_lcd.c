@@ -37,14 +37,14 @@
 
 #define MIN_BRIGHTNESS		0
 #define MAX_BRIGHTNESS		255
-#define DEFAULT_BRIGHTNESS		134
+#define DEFAULT_BRIGHTNESS		143
 
-#define POWER_IS_ON(pwr)		((pwr) <= FB_BLANK_NORMAL)
-#define LEVEL_IS_HBM(level)		((level) >= 6)
-#define LEVEL_IS_PSRE(level)		((level) >= 6)
+#define POWER_IS_ON(pwr)		(pwr <= FB_BLANK_NORMAL)
+#define LEVEL_IS_HBM(level)		(level >= 6)
+#define LEVEL_IS_PSRE(level)		(level >= 6)
 
 #define MAX_GAMMA			300
-#define DEFAULT_GAMMA_LEVEL		GAMMA_134CD
+#define DEFAULT_GAMMA_LEVEL		GAMMA_143CD
 
 #define LDI_ID_REG			0x04
 #define LDI_ID_LEN			3
@@ -520,7 +520,7 @@ acl_update:
 
 static int s6e8fa0_set_elvss(struct lcd_info *lcd, u8 force)
 {
-	int ret = 0, elvss_level = 0;
+	int ret = 0, elvss_level = 0, elvss;
 	u32 candela = candela_table[lcd->bl];
 
 	switch (candela) {
@@ -586,13 +586,15 @@ static int s6e8fa0_set_elvss(struct lcd_info *lcd, u8 force)
 		break;
 	}
 
-	if (force || lcd->current_elvss != elvss_level) {
+	elvss = lcd->elvss_table[lcd->elvss_compensation][elvss_level][2];
+
+	if (force || lcd->elvss_table[lcd->elvss_compensation][lcd->current_elvss][2] != elvss) {
 		ret = s6e8fa0_write(lcd, lcd->elvss_table[lcd->elvss_compensation][elvss_level], ELVSS_PARAM_SIZE);
 		lcd->current_elvss = elvss_level;
-	}
 
-	dev_dbg(&lcd->ld->dev, "elvss: %d, %d, %x\n", lcd->elvss_compensation, elvss_level,
-		lcd->elvss_table[lcd->elvss_compensation][elvss_level][2]);
+		dev_dbg(&lcd->ld->dev, "elvss: %d, %d, %x\n", lcd->elvss_compensation, lcd->current_elvss,
+			lcd->elvss_table[lcd->elvss_compensation][lcd->current_elvss][2]);
+	}
 
 	if (!ret) {
 		ret = -EPERM;
@@ -608,14 +610,15 @@ static int s6e8fa0_set_tset(struct lcd_info *lcd, u8 force)
 	int ret = 0, tset_level = 0;
 
 	switch (lcd->temperature) {
-	case -20:
-		tset_level = TSET_MINUS_20_DEGREE;
+	case 1:
+		tset_level = TSET_25_DEGREES;
 		break;
 	case 0:
-		tset_level = TSET_MINUS_0_DEGREE;
+	case -19:
+		tset_level = TSET_MINUS_0_DEGREES;
 		break;
-	case 1:
-		tset_level = TSET_1_DEGREE;
+	case -20:
+		tset_level = TSET_MINUS_20_DEGREES;
 		break;
 	}
 
@@ -865,6 +868,10 @@ static int update_brightness(struct lcd_info *lcd, u8 force)
 
 		s6e8fa0_set_elvss(lcd, force);
 
+		s6e8fa0_set_psre(lcd, force);
+
+		s6e8fa0_set_tset(lcd, force);
+
 		lcd->current_bl = lcd->bl;
 
 		dev_info(&lcd->ld->dev, "brightness=%d, bl=%d, candela=%d\n", \
@@ -895,7 +902,6 @@ static int s6e8fa0_ldi_init(struct lcd_info *lcd)
 	int ret = 0;
 
 	s6e8fa0_write(lcd, SEQ_TEST_KEY_ON_F0, ARRAY_SIZE(SEQ_TEST_KEY_ON_F0));
-	s6e8fa0_write(lcd, SEQ_TEST_KEY_ON_F1, ARRAY_SIZE(SEQ_TEST_KEY_ON_F1));
 	s6e8fa0_write(lcd, SEQ_TEST_KEY_ON_FC, ARRAY_SIZE(SEQ_TEST_KEY_ON_FC));
 
 	s6e8fa0_write(lcd, SEQ_TOUCHKEY_OFF, ARRAY_SIZE(SEQ_TOUCHKEY_OFF));
@@ -911,15 +917,11 @@ static int s6e8fa0_ldi_init(struct lcd_info *lcd)
 
 	msleep(100);
 
-	s6e8fa0_gamma_ctl(lcd);
-	s6e8fa0_write(lcd, SEQ_AOR_CONTROL, ARRAY_SIZE(SEQ_AOR_CONTROL));
-	s6e8fa0_write(lcd, SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE));
-	s6e8fa0_write(lcd, SEQ_ELVSS_CONDITION_SET, ARRAY_SIZE(SEQ_ELVSS_CONDITION_SET));
-	s6e8fa0_write(lcd, SEQ_ACL_OFF, ARRAY_SIZE(SEQ_ACL_OFF));
-
 	s6e8fa0_write(lcd, SEQ_PSRE_MODE_OFF, ARRAY_SIZE(SEQ_PSRE_MODE_OFF));
 	s6e8fa0_write(lcd, SEQ_PSRE_MODE_SET2, ARRAY_SIZE(SEQ_PSRE_MODE_SET2));
 	s6e8fa0_write(lcd, SEQ_PSRE_MODE_SET3, ARRAY_SIZE(SEQ_PSRE_MODE_SET3));
+
+	update_brightness(lcd, 1);
 
 	if (lcd->hover) {
 		s6e8fa0_write(lcd, SEQ_SCAN_TIMMING_1_FE_GLOBAL, ARRAY_SIZE(SEQ_SCAN_TIMMING_1_FE_GLOBAL));
@@ -979,10 +981,6 @@ static int s6e8fa0_power_on(struct lcd_info *lcd)
 
 	update_brightness(lcd, 1);
 
-	s6e8fa0_set_psre(lcd, 1);
-
-	s6e8fa0_set_tset(lcd, 1);
-
 	dev_info(&lcd->ld->dev, "- %s\n", __func__);
 err:
 	return ret;
@@ -995,7 +993,6 @@ static int s6e8fa0_power_off(struct lcd_info *lcd)
 	dev_info(&lcd->ld->dev, "+ %s\n", __func__);
 
 	lcd->ldi_enable = 0;
-	lcd->current_psre = 0;
 
 	ret = s6e8fa0_ldi_disable(lcd);
 
@@ -1196,10 +1193,8 @@ static ssize_t auto_brightness_store(struct device *dev,
 			mutex_lock(&lcd->bl_lock);
 			lcd->auto_brightness = value;
 			mutex_unlock(&lcd->bl_lock);
-			if (lcd->ldi_enable) {
+			if (lcd->ldi_enable)
 				update_brightness(lcd, 0);
-				s6e8fa0_set_psre(lcd, 0);
-			}
 		}
 	}
 	return size;
@@ -1261,18 +1256,15 @@ static ssize_t temperature_store(struct device *dev,
 		return rc;
 	else {
 		switch (value) {
-		case -20:
-			temperature = -20;
-			elvss_compensation = 1;
-			break;
-		case -19:
-		case 0:
-			temperature = 0;
-			elvss_compensation = 0;
-			break;
 		case 1:
-			temperature = 1;
+		case 0:
+		case -19:
+			temperature = value;
 			elvss_compensation = 0;
+			break;
+		case -20:
+			temperature = value;
+			elvss_compensation = 1;
 			break;
 		}
 
@@ -1281,10 +1273,8 @@ static ssize_t temperature_store(struct device *dev,
 		lcd->elvss_compensation = elvss_compensation;
 		mutex_unlock(&lcd->bl_lock);
 
-		if (lcd->ldi_enable) {
-			s6e8fa0_set_tset(lcd, 0);
-			s6e8fa0_set_elvss(lcd, 1);
-		}
+		if (lcd->ldi_enable)
+			update_brightness(lcd, 1);
 
 		dev_info(dev, "%s: %d, %d, %d\n", __func__, value, lcd->temperature, lcd->elvss_compensation);
 	}
@@ -1402,7 +1392,7 @@ static int s6e8fa0_probe(struct mipi_dsim_device *dsim)
 	lcd->connected = 1;
 	lcd->siop_enable = 0;
 	lcd->temperature = 1;
-	lcd->current_tset = TSET_1_DEGREE;
+	lcd->current_tset = TSET_25_DEGREES;
 
 	ret = device_create_file(&lcd->ld->dev, &dev_attr_power_reduce);
 	if (ret < 0)

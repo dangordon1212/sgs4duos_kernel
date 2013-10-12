@@ -109,7 +109,7 @@ void fimc_is_frame_print_free_list(struct fimc_is_framemgr *this)
 	if (!(TRACE_ID & this->id))
 		return;
 
-	printk(KERN_CONT "[FRM] fre(%d, %d) :", this->id, this->frame_fre_cnt);
+	printk(KERN_ERR "[FRM] fre(%d, %d) :", this->id, this->frame_fre_cnt);
 
 	list_for_each(temp, &this->frame_free_head) {
 		shot = list_entry(temp, struct fimc_is_frame, list);
@@ -183,7 +183,7 @@ void fimc_is_frame_print_request_list(struct fimc_is_framemgr *this)
 	if (!(TRACE_ID & this->id))
 		return;
 
-	printk(KERN_CONT "[FRM] req(%d, %d) :",
+	printk(KERN_ERR "[FRM] req(%d, %d) :",
 		this->id, this->frame_req_cnt);
 
 	list_for_each(temp, &this->frame_request_head) {
@@ -258,7 +258,7 @@ void fimc_is_frame_print_process_list(struct fimc_is_framemgr *this)
 	if (!(TRACE_ID & this->id))
 		return;
 
-	printk(KERN_CONT "[FRM] pro(%d, %d) :",
+	printk(KERN_ERR "[FRM] pro(%d, %d) :",
 		this->id, this->frame_pro_cnt);
 
 	list_for_each(temp, &this->frame_process_head) {
@@ -334,7 +334,7 @@ void fimc_is_frame_print_complete_list(struct fimc_is_framemgr *this)
 	if (!(TRACE_ID & this->id))
 		return;
 
-	printk(KERN_CONT "[FRM] com(%d, %d) :",
+	printk(KERN_ERR "[FRM] com(%d, %d) :",
 		this->id, this->frame_com_cnt);
 
 	list_for_each(temp, &this->frame_complete_head) {

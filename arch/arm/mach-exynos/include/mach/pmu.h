@@ -49,5 +49,6 @@ extern void exynos_l2_common_pwr_ctrl(void);
 extern void exynos_enable_idle_clock_down(unsigned int cluster);
 extern void exynos_disable_idle_clock_down(unsigned int cluster);
 extern void exynos_lpi_mask_ctrl(bool on);
+extern void exynos_set_dummy_state(bool on);
 
 #endif /* __ASM_ARCH_PMU_H */

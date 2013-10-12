@@ -373,7 +373,8 @@ static irqreturn_t flite_irq_handler(int irq, void *priv)
 			active_queue_add(flite, buf);
 		}
 		if (flite->active_buf_cnt == 0) {
-			clear_bit(FLITE_ST_RUN, &flite->state);
+			flite_warn("active buf cnt is 0");
+			/* clear_bit(FLITE_ST_RUN, &flite->state); */
 		}
 	}
 unlock:
@@ -949,8 +950,14 @@ static int flite_close(struct file *file)
 
 	if (flite->mdev->is_flite_on == true) {
 		flite_warn("fimc-lite is streaming, try to stop streaming");
-		if (flite_stop_streaming(&flite->vbq) < 0)
-			flite_err("stop streaming fail!!");
+		if (flite_stop_streaming(&flite->vbq) < 0) {
+			flite_err("stop streaming fail and reset");
+			flite_hw_set_capture_stop(flite);
+			flite_hw_reset(flite);
+			msleep(60);
+			INIT_LIST_HEAD(&flite->active_buf_q);
+			INIT_LIST_HEAD(&flite->pending_buf_q);
+		}
 	}
 
 	if (flite->refcnt > 0) {

@@ -327,6 +327,9 @@ static inline unsigned int r2h_bits(int cmd)
 #define S5P_FIMV_E_RC_MODE			0xF79C
 #define S5P_FIMV_ENC_TIGHT_CBR			1
 #define S5P_FIMV_ENC_LOOSE_CBR			2
+#define S5P_FIMV_ENC_ADV_TIGHT_CBR		0
+#define S5P_FIMV_ENC_ADV_LOOSE_CBR		1
+#define S5P_FIMV_ENC_ADV_CAM_CBR		2
 #define S5P_FIMV_E_MB_RC_CONFIG			0xF7A0
 #define S5P_FIMV_E_PADDING_CTRL			0xF7A4
 #define S5P_FIMV_E_MV_HOR_RANGE			0xF7AC
@@ -390,6 +393,7 @@ static inline unsigned int r2h_bits(int cmd)
 #define S5P_FIMV_E_EXTENDED_SAR			0xFB54
 
 #define S5P_FIMV_E_H264_OPTIONS			0xFB58
+#define S5P_FIMV_E_H264_OPTIONS_2		0xFB4C
 #define S5P_FIMV_E_H264_LF_ALPHA_OFFSET		0xFB5C
 #define S5P_FIMV_E_H264_LF_BETA_OFFSET		0xFB60
 #define S5P_FIMV_E_H264_I_PERIOD		0xFB64

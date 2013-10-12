@@ -70,11 +70,6 @@ static const unsigned char SEQ_TEST_KEY_ON_F0[] = {
 	0x5A, 0x5A,
 };
 
-static const unsigned char SEQ_TEST_KEY_ON_F1[] = {
-	0xF1,
-	0x5A, 0x5A,
-};
-
 static const unsigned char SEQ_TEST_KEY_ON_FC[] = {
 	0xFC,
 	0x5A, 0x5A,
@@ -176,16 +171,16 @@ static const unsigned char SEQ_SCAN_TIMMING_1_FE[] = {
 };
 
 enum {
-	TSET_MINUS_20_DEGREE,
-	TSET_MINUS_0_DEGREE,
-	TSET_1_DEGREE,
+	TSET_25_DEGREES,
+	TSET_MINUS_0_DEGREES,
+	TSET_MINUS_20_DEGREES,
 	TSET_STATUS_MAX,
 };
 
 static const unsigned char TSET_TABLE[TSET_STATUS_MAX] = {
-	0x94,	/* -20 degree */
-	0x80,	/* -0 degree */
 	0x19,	/* +25 degree */
+	0x80,	/* -0 degree */
+	0x94,	/* -20 degree */
 };
 
 enum {

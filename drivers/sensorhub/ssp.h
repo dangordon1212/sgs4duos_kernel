@@ -182,6 +182,10 @@ enum {
 #define MSG2SSP_AP_STATUS_RESET			0xD5
 #define MSG2SSP_AP_STATUS_POW_CONNECTED		0xD6
 #define MSG2SSP_AP_STATUS_POW_DISCONNECTED	0xD7
+#define MSG2SSP_AP_STATUS_CALL_IDLE		0xD8
+#define MSG2SSP_AP_STATUS_CALL_ACTIVE		0xD9
+#define MSG2SSP_AP_TEMPHUMIDITY_CAL_DONE	0xDA
+
 #define MSG2SSP_AP_WHOAMI			0x0F
 #define MSG2SSP_AP_FIRMWARE_REV			0xF0
 #define MSG2SSP_AP_SENSOR_FORMATION		0xF1
@@ -397,6 +401,7 @@ struct ssp_data {
 	int mag_position;
 	int fw_dl_state;
 	char *comp_engine_ver;
+	char *comp_engine_ver2;
 	struct platform_device *pdev_pam_temp;
 	struct s3c_adc_client *adc_client;
 	u8 cp_thm_adc_channel;
