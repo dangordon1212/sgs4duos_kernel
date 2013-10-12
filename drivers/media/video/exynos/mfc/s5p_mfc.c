@@ -200,7 +200,7 @@ void mfc_sched_worker(struct work_struct *work)
 		mfc_err("no mfc device to run\n");
 }
 
-inline int clear_hw_bit(struct s5p_mfc_ctx *ctx)
+int clear_hw_bit(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	int ret = -1;
@@ -213,7 +213,7 @@ inline int clear_hw_bit(struct s5p_mfc_ctx *ctx)
 
 /* Helper functions for interrupt processing */
 /* Remove from hw execution round robin */
-inline void clear_work_bit(struct s5p_mfc_ctx *ctx)
+void clear_work_bit(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = NULL;
 
