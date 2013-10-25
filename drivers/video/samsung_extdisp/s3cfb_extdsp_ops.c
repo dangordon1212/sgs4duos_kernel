@@ -312,7 +312,7 @@ int s3cfb_extdsp_unmap_fd(void)
 	return 0;
 }
 
-unsigned int __chan_to_field_extdsp(unsigned int chan, struct fb_bitfield bf)
+inline unsigned int __chan_to_field_extdsp(unsigned int chan, struct fb_bitfield bf)
 {
 	chan &= 0xffff;
 	chan >>= 16 - bf.length;

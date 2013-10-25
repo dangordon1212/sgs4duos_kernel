@@ -141,8 +141,8 @@ int fimc_is_queue_setup(struct fimc_is_queue *queue,
 int fimc_is_queue_buffer_queue(struct fimc_is_queue *queue,
 	const struct fimc_is_vb2 *vb2,
 	struct vb2_buffer *vb);
-void fimc_is_queue_wait_prepare(struct vb2_queue *vbq);
-void fimc_is_queue_wait_finish(struct vb2_queue *vbq);
+inline void fimc_is_queue_wait_prepare(struct vb2_queue *vbq);
+inline void fimc_is_queue_wait_finish(struct vb2_queue *vbq);
 int fimc_is_queue_start_streaming(struct fimc_is_queue *queue,
 	struct fimc_is_device_ischain *device,
 	struct fimc_is_subdev *subdev,
@@ -215,6 +215,5 @@ long video_ioctl3(struct file *file, unsigned int cmd, unsigned long arg);
 #define GET_DST_FRAMEMGR(vctx) (&vctx->q_dst.framemgr)
 
 #define CALL_QOPS(q, op, args...) (((q)->qops->op) ? ((q)->qops->op(args)) : 0)
-
 
 #endif
