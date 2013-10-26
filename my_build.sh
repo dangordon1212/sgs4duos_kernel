@@ -3,9 +3,11 @@
 #export KBUILD_OUTPUT=$PWD/../_9502/
 #export O=$PWD/../_9502/
 
+rm -f include/generated/compile.h
+
 export KBUILD_BUILD_USER=cyaniris
 export KBUILD_BUILD_HOST=github.com
 
 #make ARCH=arm oldconfig
-#make ARCH=arm -j3
+make ARCH=arm -j3
 
