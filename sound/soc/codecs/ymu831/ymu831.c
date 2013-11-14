@@ -3738,7 +3738,10 @@ static void set_BIAS(
 		}
 
 	if (((path_info->asHp[0].dSrcOnOff & MCDRV_ASRC_DAC0_L_ON) != 0)
-	|| ((path_info->asHp[1].dSrcOnOff & MCDRV_ASRC_DAC0_R_ON) != 0)) {
+	|| ((path_info->asHp[1].dSrcOnOff & MCDRV_ASRC_DAC0_R_ON) != 0)
+	|| ((path_info->asAdc0[0].dSrcOnOff & MCDRV_ASRC_MIC4_ON) != 0)
+	|| ((path_info->asAdc0[1].dSrcOnOff & MCDRV_ASRC_MIC4_ON) != 0)
+	|| ((path_info->asAdc1[0].dSrcOnOff & MCDRV_ASRC_MIC4_ON) != 0)) {
 		reg_info.bRegType = MCDRV_REGTYPE_ANA;
 		reg_info.bAddress = 13;
 		_McDrv_Ctrl(MCDRV_READ_REG, (void *)&reg_info, NULL, 0);
