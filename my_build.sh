@@ -7,5 +7,5 @@ export KBUILD_BUILD_USER=cyaniris
 export KBUILD_BUILD_HOST=github.com
 
 #make ARCH=arm oldconfig
-#make ARCH=arm -j3
+make ARCH=arm -j3
 

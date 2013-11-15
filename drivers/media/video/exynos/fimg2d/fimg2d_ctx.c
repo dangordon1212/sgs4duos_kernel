@@ -78,7 +78,7 @@ static inline int pixel2offset(int x1, int bpp)
 	return (x1 * bpp) >> 3;
 }
 
-inline int width2bytes(int width, int bpp)
+int width2bytes(int width, int bpp)
 {
 	switch (bpp) {
 	case 32:
