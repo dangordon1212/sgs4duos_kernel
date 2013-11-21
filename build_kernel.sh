@@ -1,19 +1,11 @@
 #!/bin/bash
 
-export ARCH=arm
-export CROSS_COMPILE=/opt/toolchains/arm-eabi-4.6/bin/arm-eabi-
+BUILD_TOP_DIR=$(pwd)
 
-MODEL=$1
-VER=$2
+source my_setup.sh
 
-if	[ "" = "$1" ]
-then
-	echo --------------------------------------------------------------------------------
-	echo - Useage
-	echo -   : ./build_kernel.sh [model] [ver]
-	echo -   : ./build_kernel.sh jalteskt 00
-	echo --------------------------------------------------------------------------------
-	exit
-fi
-make ${MODEL}_${VER}_defconfig
-make
+test -z $CROSS_COMPILE && exit 1
+
+make ja3gduos_chn_cu_00_defconfig
+nice make -j3
+
